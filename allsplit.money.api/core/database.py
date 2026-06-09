@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import os
 
-client = MongoClient("mongodb://localhost:27017")
+client = MongoClient("mongodb://13.233.110.194:27017")
 db = client["allsplit_db"]
 
  
@@ -11,3 +11,4 @@ bills_collection = db["bills"]
 
 # NEW COLLECTION
 split_collection = db["bill_splits"]
+people_collection = db["people"]

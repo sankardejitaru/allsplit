@@ -25,4 +25,4 @@ def check_device_router(device :DeviceIdSetPinRequest):
         {"$set": {"last_login": datetime.utcnow()}}
     )
 
-    return {"success": True}
+    return {"LoginId": devices["id"], "message": "Login successful", "success": True}

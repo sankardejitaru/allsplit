@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState,useEffect } from "react";
 import {
   View,
   TextInput,
@@ -9,15 +9,22 @@ import {
   Switch,
   StyleSheet,
   ActivityIndicator,
+  Alert,
+  Linking,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import {launchImageLibrary} from 'react-native-image-picker';
 import { SendBillScan } from "../controllers/authController";
 
-import styles from "../styles/billStyles";
+import { billStyles as styles, theme } from "../styles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import ScanBillScreen from "./ScanBillScreen";
 import { MyOweAdd } from "../controllers/authController";
+import { showToast } from '../utils/toastService'; // your reusable toast function
+import BillScannerScreen from "./BillScannerScreen";
+import BillDetailsScreen from "./BillDetailsScreen";
+
 
 
 export default function BillScanScreen({ navigation,route }) {
@@ -27,33 +34,78 @@ export default function BillScanScreen({ navigation,route }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  if (!permission) return <View />;
+  const handleRequestPermission = async () => {
+    if (!permission) return;
+    const result = await requestPermission();
 
-  if (!permission.granted) {
-    return (
-      <View style={styles.permissionBox}>
-        <Text style={styles.permissionText}>
-          Camera permission required
-        </Text>
-        <TouchableOpacity onPress={requestPermission}>
-          <Text style={styles.permissionBtn}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+    if (!result?.granted) {
+      if (result?.canAskAgain === false) {
+        Alert.alert(
+          "Camera Permission Required",
+          "Camera access is required to scan bills. Please enable it in your device settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Permission Denied",
+          "Please allow camera access to use the scanning feature.",
+          [{ text: "OK" }]
+        );
+      }
+    }
+  };
+
+  
   const { splitData } = route.params;
 
+  useEffect(() => {
+    if (splitData.type === 'manual') {
+      setPhoto("NA"); // skip camera and show manual entry UI
+      setLoading(false);
+    } else if(splitData.type === 'upload') {
+      choosePhoto();      
+    } else {
+      setPhoto(null);
+    }
+  }, [splitData.type]);
+
+  const choosePhoto = () => {
+    console.log("Opening image library for bill upload...");
+        launchImageLibrary({mediaType: 'photo'}, (response) => {
+          if (!response.didCancel && !response.errorCode) {
+            setPhoto(response.assets[0].uri);
+            uploadBill(response.assets[0].uri); // set photo to result.assets[0].uri
+            setLoading(true);
+          }
+        });
+      };
   /* from this get list of contacts choosed from split data and its count */
   const contacts = splitData.contacts;
   const contactCount = contacts.length;
+  
+  const pickImage = async () => {
+    // Ask for permission   
+
+    // Open gallery
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0].uri); // store the chosen photo URI
+    }
+  };
 
   /* ========= Take Picture ========= */
   const takePicture = async () => {
     try {
       const result = await cameraRef.current.takePictureAsync({
         quality: 0.8,
-      });
-
+      }); 
       setPhoto(result.uri);
       uploadBill(result.uri);
     } catch (err) {
@@ -64,23 +116,26 @@ export default function BillScanScreen({ navigation,route }) {
 
   /* ========= Send Image to Backend ========= */
   const uploadBill = async (imageUri) => {
+    console.log("Uploading bill with image URI:", imageUri);
+    
     try {
       setLoading(true);
 
       const formData = new FormData();
       formData.append("file", {
         uri: imageUri,
-        name: "bill.jpg",
-        type: "image/jpeg",
+        name: "bill.png",
+        type: "image/png",
       });
       
       const data = await SendBillScan(formData);     
-      
+      console.log("Received items from bill scan:", JSON.stringify(data.items));
       if (data.success) {
         const mappedItems = data.items.map((item, index) => ({
           id: index.toString(),
           name: item.item,
           price: item.amount,
+          qty: 1,
           splitEqual: true,
         }));
 
@@ -95,12 +150,13 @@ export default function BillScanScreen({ navigation,route }) {
       setLoading(false);
     }
   };
-const handleFinalSubmit = async () => {
+const handleFinalSubmit = async () => { 
+  
   // 1. Map the items to include item_id and the keys expected by your API
   const mappedItems = items.map((item, index) => ({
     item_id: item.id || `ITEM${index + 1}`,
     description: item.name,
-    quantity: item.quantity || 0, // Defaulting to 1 as per UI, adjust if you add quantity input
+    qty: item.quantity || 0, // Defaulting to 1 as per UI, adjust if you add quantity input
     price: parseFloat(item.price) || 0,
     is_split_equal: item.splitEqual,
   }));
@@ -114,6 +170,7 @@ const handleFinalSubmit = async () => {
     items: mappedItems.map((item) => ({
       item_id: item.item_id,
       share: item.is_split_equal ? "equal" : "custom",
+      price: item.is_split_equal ? (item.price / contactCount).toFixed(2) : '0',
     })),
   }));
 
@@ -135,13 +192,12 @@ const handleFinalSubmit = async () => {
     },
   };
 
-  const response = await MyOweAdd(finalPayload);
-   //console.log("AllSplit API Log - Save Split Response:", response);
-   //AllSplit API Log - Save Split Response: {"inserted_id": "6a0304990cab1c231aeca456", "message": "Split saved successfully", "status": true}
+  const response = await MyOweAdd(finalPayload);  
     if (response.status) { 
-     // navigation.navigate("MyOwe");
+      showToast('info', 'SUCCESS!', 'All split money bill created.');
+      navigation.navigate("MyOwe");
     } else {
-     // alert(response.message);
+      alert(response.message);
     }
  //navigation.navigate('ViewMyOwe', { finalPayload: finalPayload });
 };
@@ -151,12 +207,12 @@ const addItem = () => {
       id: Date.now().toString(),
       name: "",
       price: "",
-      quantity: contactCount.toString(),
+      qty: 1,
       splitEqual: true,
       isEditing: true,
     };
     setItems([newItem, ...items]); 
-   console.log("Current items list:", [newItem, ...items]);
+    
   };
 
   const removeItem = (id) => {
@@ -202,104 +258,13 @@ const addItem = () => {
       ) : (
         <>
         
-           
-
           {loading && (
-            <ScanBillScreen photo={photo} />
+            <BillScannerScreen photo={photo} />
           )}
 
-          {!loading && (
-            <>
-              <View style={styles.headerRow}>
-                <Text style={styles.sectionTitle}>Split Items</Text>
-
-                <TouchableOpacity
-                  style={styles.addIconBtn}
-                  onPress={addItem}
-                >
-                  <Ionicons name="add" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              {items.length === 0 && (
-                <Text style={styles.noItems}>
-                  No items detected. You can add manually.
-                </Text>
-              )}
-            
-      <View style={{ flex: 1  }}>
-      {/* Add Button */}
-      
-
-      {/* Scrollable List */}
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        renderItem={({ item }) => (
-          <View style={styles.itemRow}>
-            
-            {/* Name & Price (Editable) */}
-            <View style={{ flexDirection: "row", flex: 1 }}>
-              
-              <TextInput
-                placeholder="name"
-                value={item.name}
-                onChangeText={(text) =>
-                  updateItem(item.id, "name", text)
-                }
-                style={styles.input}
-              />
-
-              <TextInput
-                placeholder="Amount"
-                 value={item.price?.toString()}
-                 keyboardType="decimal-pad" 
-                 inputMode="decimal"
-                onChangeText={(text) =>
-                  updateItem(item.id, "price", text)
-                }
-                style={styles.input}
-              /> 
-              <TextInput
-                placeholder="Qty"
-                 value={item.quantity?.toString()}
-                 keyboardType="decimal-pad" 
-                 inputMode="decimal"
-                 editable={item.splitEqual==true?false:true}
-                onChangeText={(text) =>
-                  updateItem(item.id, "quantity", text)
-                }
-                style={styles.input}
-              />
-            </View>
-
-            {/* Switch */}
-            <View style={styles.switchRow}> 
-              <Switch
-                value={item.splitEqual}
-                onValueChange={() => toggleSplit(item.id)}
-              />
-            </View>
-
-            {/* Delete */}
-            <TouchableOpacity
-              onPress={() => removeItem(item.id)}
-              style={styles.deleteBtn}
-            >
-              <Text><Ionicons name="trash" size={24} color="green" /></Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-    </View>
-<View style={styles.rightAlign}>
-    <TouchableOpacity style={styles.arrowIconbtn} 
-    onPress={() => handleFinalSubmit()} >
-  <Ionicons name="arrow-forward" size={22} color="#fff" />
-</TouchableOpacity>
-</View>
-            </>
-          )}
+          {!loading && 
+           navigation.navigate("Details", { selectedPeople : [],Items : items })
+          }
         </>
       )}
     </View>

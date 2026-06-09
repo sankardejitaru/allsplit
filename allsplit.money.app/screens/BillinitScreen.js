@@ -5,15 +5,14 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
-  PermissionsAndroid,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import Contacts from 'react-native-contacts';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import styles from '../styles/billinitStyles';
+import { billinitStyles as styles, theme } from '../styles';
 import { Icon } from 'react-native-elements';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { showToast } from '../utils/toastService';
 
 export default function ContactSelectorScreen({ navigation }) {
   const [allContacts, setAllContacts] = useState([]);
@@ -24,33 +23,16 @@ export default function ContactSelectorScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const requestPermissionAndFetch = async () => {
+    const fetchContacts = async () => {
       try {
-        if (Platform.OS === 'android') {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-            {
-              title: 'Contacts Permission',
-              message: 'This app needs access to your contacts to split bills.',
-              buttonPositive: 'OK',
-            }
-          );
-
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            loadContacts();
-          } else {
-            setLoading(false);
-          }
-        } else {
-          loadContacts();
-        }
+        loadContacts();
       } catch (err) {
-        console.error('Permission error:', err);
+        console.error('Contacts load error:', err);
         setLoading(false);
       }
     };
 
-    requestPermissionAndFetch();
+    fetchContacts();
   }, []);
 
   const loadContacts = () => {
@@ -89,12 +71,19 @@ export default function ContactSelectorScreen({ navigation }) {
     }
   };
 
-  const buildPayload = () => {
+  const buildPayload = (type) => {
+    
+    if(splitName.length == 0){
+      showToast("danger", "Error", "Please enter a split name");
+      return;
+    }
+
     const payload = {
+      type: type, // "scan", "upload", or "manual"
       split_name: splitName,
       contacts: selectedContacts.map((c) => ({
         name: c.displayName || `${c.givenName} ${c.familyName}`,
-        contact: c.phoneNumbers[0]?.number || '',
+        contact: c.phoneNumbers[0]?.number.replace(/[ \-\(\)\+]/g, '').length > 10 ? c.phoneNumbers[0]?.number.replace(/[ \-\(\)\+]/g, '') : '91'+ c.phoneNumbers[0]?.number.replace(/[ \-\(\)\+]/g, ''),
       })),
       items : [], // This will be filled in the next step
 
@@ -103,12 +92,18 @@ export default function ContactSelectorScreen({ navigation }) {
         created_by: 'mobile_app_ui',
       },
     };
+    
     navigation.navigate('BillScan', { splitData: payload });
   };
 
   const renderContactItem = ({ item }) => {
     const isSelected = selectedContacts.some((c) => c.recordID === item.recordID);
-    const phoneNumber = item.phoneNumbers[0]?.number || 'No number';
+    const beforephoneNumber = item.phoneNumbers[0]?.number.replace(/[ \-\(\)\+]/g, '');
+    //console.log(beforephoneNumber.length);
+    // Remove spaces, dashes, parentheses, and plus signs 
+
+    const phoneNumber = beforephoneNumber.length > 10 ? beforephoneNumber : '91'+ beforephoneNumber;
+    //console.log(phoneNumber);
 
     return (
       <TouchableOpacity
@@ -139,12 +134,14 @@ export default function ContactSelectorScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="What is this for? (e.g. Pizza Night)"
+            placeholderTextColor={theme.colors.textMuted}
             value={splitName}
             onChangeText={setSplitName}
           />
           <TextInput
             style={[styles.input, { marginBottom: 0 }]}
             placeholder="Search name or number..."
+            placeholderTextColor={theme.colors.textMuted}
             value={search}
             onChangeText={handleSearch}
           />
@@ -166,15 +163,41 @@ export default function ContactSelectorScreen({ navigation }) {
         )}
 
         {/* Footer Action */}
-        <TouchableOpacity
-          style={[styles.submitButton, selectedContacts.length === 0 && styles.disabledButton]}
-          onPress={buildPayload}
-          disabled={selectedContacts.length === 0}
-        >
-          <Text style={styles.submitText}>
-            Continue {selectedContacts.length > 0 ? `(${selectedContacts.length})` : ''}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', margin: 10 }}>
+          <TouchableOpacity
+            style={[styles.submitButton, selectedContacts.length === 0 && styles.disabledButton]}
+            onPress={() => buildPayload('scan')}
+            disabled={selectedContacts.length === 0}
+          >
+            <Text style={styles.submitText}>
+              <Text>
+                <MaterialCommunityIcons name="qrcode-scan" size={30} color="white" />
+              </Text> 
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.submitButton, selectedContacts.length === 0 && styles.disabledButton]}
+            onPress={() => buildPayload('upload')}
+            disabled={selectedContacts.length === 0}
+          >
+            <Text style={styles.submitText}>
+              <Text>
+                <MaterialCommunityIcons name="upload" size={30} color="white" />
+              </Text>
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.submitButton, selectedContacts.length === 0 && styles.disabledButton]}
+            onPress={() => buildPayload('manual')}
+            disabled={selectedContacts.length === 0}
+          >
+            <Text style={styles.submitText}>
+              <Text>
+                <MaterialCommunityIcons name="file-document-outline" size={30} color="white" />
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );

@@ -17,9 +17,9 @@ def save_file(file: UploadFile):
 
 
 @router.post("/scan-bill")
-def scan_bill(file: UploadFile = File(...)):
-    #path = save_file(file)
+async def scan_bill(file: UploadFile = File(...)):
+    # path = save_file(file)
     #return {"path": path}
-    text = process_bill_ocr(file) 
+    text = await process_bill_ocr(file) 
 
     return  text

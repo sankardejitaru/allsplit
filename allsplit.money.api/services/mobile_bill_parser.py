@@ -1,30 +1,57 @@
 import re
 
+
 def clean_mobile_ocr(text: str) -> str:
+    replacements = {
+        "CIKE": "COKE",
+        "BASY": "BABY",
+        "Farticulars": "Particulars",
+        "Retk": "Rate",
+        "GEE": "GHEE",
+        "POTAL": "PONGAL",
+        "ROLES": "NOODLES",
+        "SEST": "SGST",
+        "Sal⭑ct": "Sub Total",
+        "₹": "Rs ",
+        "|": "",
+    }
+
+    for wrong, correct in replacements.items():
+        text = text.replace(wrong, correct)
+
+    # Fix common OCR numeric issues
+    text = re.sub(r"(?<=\d)\s+(?=\d)", ".", text)  # 66 67 → 66.67
+    text = re.sub(r"\s{2,}", " ", text)
+
+    # Normalize lines
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if len(line) > 2:
+            lines.append(line)
+
+    return "\n".join(lines)
+
+
+def parse_mobile_bill(text: str):
     """
-    Cleans noisy mobile OCR output before parsing
+    Extracts items: name, qty, price
     """
+    items = []
+    lines = text.splitlines()
 
-    if isinstance(text, dict):
-        text = text.get("text", "")
+    for line in lines:
+        # Example: "Tea 2 40.00"
+        match = re.search(
+            r"(.+?)\s+(\d+)\s+(\d+\.\d{2})",
+            line
+        )
+        if match:
+            name, qty, price = match.groups()
+            items.append({
+                "item": name.strip(),
+                "qty": int(qty),
+                "price": float(price)
+            })
 
-    # Normalize unicode junk (like ២, special symbols)
-    text = re.sub(r"[^\x00-\x7F]+", " ", text)
-
-    # Remove repeated separators / noise
-    text = re.sub(r"[-_•♦✔✔]+", " ", text)
-
-    # Fix broken spacing
-    text = re.sub(r"\s+", " ", text)
-
-    # Restore line structure heuristically
-    text = text.replace(" Item ", "\nItem\n")
-    text = text.replace(" Qty ", "\nQty\n")
-    text = text.replace(" Total ", "\nTotal\n")
-
-    # Split better for parser
-    lines = text.split(".")
-
-    cleaned = "\n".join([l.strip() for l in lines if l.strip()])
-
-    return cleaned
+    return items

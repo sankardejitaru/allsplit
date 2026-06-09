@@ -1,41 +1,153 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState,useEffect } from 'react';
+import { View, Text, FlatList, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons'; 
+import { MyOwePrizeUpdate,closebill } from '../controllers/authController'; 
+import { viewmyoweStyle as styles } from '../styles';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { showToast } from '../utils/toastService'; // your reusable toast function
+
+
 
 export default function ViewMyOweScreen({ route, navigation }) {
-  // Extract finalPayload passed from BillScanScreen
   const { finalPayload } = route.params;
- 
-  const renderParticipant = ({ item }) => (
-    <View style={styles.participantCard}>
-      <View style={styles.participantHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+  
+
+  // ✅ Keep participants in local state
+  const [participants, setParticipants] = useState([]);
+  const [tempPrice, setTempPrice] = useState();
+  const [Name, setName] = useState(finalPayload.consolidated.participants[0].name);
+
+  useEffect(() => {
+    // Deep clone to avoid mutating route.params
+    const cloned = JSON.parse(JSON.stringify(finalPayload.consolidated.participants));
+    setParticipants(cloned);
+  }, [finalPayload]);
+
+  const handlePriceChange = (participantIndex, itemIndex, newPrice) => {
+    const updated = [...participants];
+    updated[participantIndex].items[itemIndex].price = parseFloat(newPrice) || 0;
+    setParticipants(updated);
+    setTempPrice(newPrice);
+  };
+  const handleSave = async (participantIndex, itemIndex) => {
+     const finalPayload1 = {
+      "id": finalPayload._id,
+      "participant_name": finalPayload.consolidated.participants[participantIndex].name,
+      "item_id": finalPayload.consolidated.participants[participantIndex].items[itemIndex].item_id,
+      "new_price": tempPrice
+    };
+    
+    
+      const response = await MyOwePrizeUpdate(finalPayload1); 
+      if(!response.success) {
+        showToast('danger', 'WARNING!', 'Item price is exceed the limit.');
+        handlePriceChange(participantIndex, itemIndex, response.message);
+      }
+  };
+
+  const btnclosebill = async () => {
+    const finalPayload1 = {
+      "id": finalPayload._id,
+      "participant_name": Name
+    };
+    const response = await closebill(finalPayload1);
+    
+    if(!response.success) {
+      showToast('danger', 'WARNING!', 'Something went wrong.');
+      return;
+    }
+    showToast('info', 'SUCCESS!', 'Bill closed successfully.');
+    navigation.navigate('MyOwe');
+  };
+
+  const renderParticipant = ({ item, index: participantIndex }) => {
+    // Calculate total dynamically
+     
+    const total = item.items.reduce((sum, entry) => {
+      sum = 0;
+      
+      {finalPayload.items.map(i => {
+        if(i.item_id === entry.item_id) {
+          if(entry.price !== undefined) {
+            i.price = entry.price;
+            
+          }
+          //i.price = entry.price;
+        }
+        sum = sum + (parseFloat(i.price) || 0)
+         
+      })}
+      //itemDetail.price = parseFloat(entry.price) || 0;
+      return sum;
+    }, 0);
+
+    return (
+      <View style={styles.participantCard}>
+        <View style={styles.participantHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+          </View>
+          <View>
+            <Text style={styles.participantName}>{item.name}</Text>
+            <Text style={styles.participantPhone}>{item.contact}</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.participantName}>{item.name}</Text>
-          <Text style={styles.participantPhone}>{item.contact}</Text>
+
+        <View style={styles.divider} />
+
+          
+        {item.items.map((entry, itemIndex) => {
+          const itemDetail = finalPayload.items.find(i => i.item_id === entry.item_id);
+
+          return (
+            <View key={itemIndex} style={styles.itemRow}>
+              <Text style={styles.itemDescription}>{itemDetail?.description}</Text>
+              <View>{itemDetail?.is_split_equal ? 
+              <Text>
+  <MaterialCommunityIcons name="equal" size={12} color="black" />
+</Text> : <Text>
+  <MaterialCommunityIcons name="not-equal" size={12} color="black" />
+</Text>}</View>
+
+              {finalPayload.consolidated.participants.map((participant, pIndex) => (
+                <View key={pIndex} style={{ marginLeft: 10 }}>
+                  {participant.items.map((pItem, piIndex) => {
+                    if (pItem.item_id === entry.item_id) {
+                      return (
+                        <TextInput
+                          key={piIndex}   // ✅ add a unique key here
+                          style={itemDetail?.is_split_equal===true ? styles.itemPriceimmuted : styles.itemPrice}
+                          value={entry.price ? entry.price.toString() : ''}
+                          editable={!itemDetail?.is_split_equal ?? false}
+                          keyboardType="decimal-pad"
+                          inputMode="decimal"
+                          onChangeText={(text) =>
+                            handlePriceChange(pIndex, itemIndex, text)
+                          }
+                          onBlur={() =>
+                            handleSave(pIndex, itemIndex)
+                          }
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                </View>
+              ))}
+            </View>
+          );
+        })}
+
+
+        <View style={styles.divider} />
+        <View style={styles.itemRow}>
+          <Text style={styles.itemDescription}>Total</Text>
+          <Text>{Number(total).toFixed(2)}</Text>
         </View>
       </View>
-
-      <View style={styles.divider} />
-
-      {item.items.map((entry, index) => {
-        // Find the full item details from the main items list to get description/price
-        const itemDetail = finalPayload.items.find(i => i.item_id === entry.item_id);
-        return (
-          <View key={index} style={styles.itemRow}>
-            <Text style={styles.itemDescription}>{itemDetail?.description}</Text>
-            <View style={styles.badge}>
-               <Text style={styles.badgeText}>{entry.share}</Text>
-            </View>
-            <Text style={styles.itemPrice}>₹{itemDetail?.price}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -54,74 +166,17 @@ export default function ViewMyOweScreen({ route, navigation }) {
       </View>
 
       <FlatList
-        data={finalPayload.consolidated.participants}
+        data={participants}
         keyExtractor={(item, index) => index.toString()}
         renderItem={renderParticipant}
         contentContainerStyle={styles.listContainer}
-        ListFooterComponent={
-          <TouchableOpacity style={styles.doneButton} onPress={() => navigation.popToTop()}>
-            <Text style={styles.doneButtonText}>Finish Split</Text>
-          </TouchableOpacity>
-        }
       />
+
+      <TouchableOpacity style={styles.closeButton} onPress={btnclosebill}>
+        <Text style={styles.closeButtonText}>Close Bill</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f5f7fa' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 20, 
-    backgroundColor: '#fff' 
-  },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  summaryCard: { 
-    backgroundColor: '#4CAF50', 
-    padding: 20, 
-    margin: 15, 
-    borderRadius: 15, 
-    elevation: 5 
-  },
-  summaryLabel: { color: '#E8F5E9', fontSize: 12, textTransform: 'uppercase' },
-  summaryValue: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  metaDate: { color: '#fff', fontSize: 10, marginTop: 5, opacity: 0.8 },
-  listContainer: { padding: 15 },
-  participantCard: { 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    padding: 15, 
-    marginBottom: 15, 
-    elevation: 2 
-  },
-  participantHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  avatar: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: '#E8F5E9', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 12 
-  },
-  avatarText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 18 },
-  participantName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  participantPhone: { fontSize: 12, color: '#777' },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
-  itemDescription: { flex: 1, fontSize: 14, color: '#444' },
-  badge: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginHorizontal: 10 },
-  badgeText: { fontSize: 10, color: '#666', textTransform: 'capitalize' },
-  itemPrice: { fontSize: 14, fontWeight: '600', color: '#333' },
-  doneButton: { 
-    backgroundColor: '#4CAF50', 
-    padding: 18, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    marginTop: 10, 
-    marginBottom: 30 
-  },
-  doneButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
-});
+ 
