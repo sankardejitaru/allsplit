@@ -15,6 +15,7 @@ import { MyOweList } from '../controllers/authController';
 import DeviceInfo from 'react-native-device-info'; 
 import { homeStyles as styles } from '../styles';
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function MyOweScreen({ navigation }) {
@@ -23,6 +24,7 @@ export default function MyOweScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [LOGGED_IN_USER_ID, setLoginId] = useState(""); 
 
   // Replace with your actual API endpoint
   const fetchSplits = async () => {
@@ -39,9 +41,6 @@ export default function MyOweScreen({ navigation }) {
     }
   };
   const buildPayload = (type) => {
-      
-    console.log("Building payload for type:", type);
-  
       const payload = {
         type: type, // "scan", "upload", or "manual"
         split_name: "Test 1",
@@ -61,6 +60,12 @@ export default function MyOweScreen({ navigation }) {
      
   })
   useEffect(() => {
+    const fetchLoginId = async () => {
+      const loginId = await AsyncStorage.getItem("LoginId");
+      
+      if (loginId) setLoginId(loginId.toString());
+    };
+    fetchLoginId();
     fetchSplits();
   }, []);
 
@@ -106,12 +111,21 @@ export default function MyOweScreen({ navigation }) {
         </View>
         <View style={styles.cardFooter}>
         <Text style={disable(item?.consolidated?.participants[0].status)?styles.owepriceTotal:styles.priceTotal}>
-          My Owe: ₹ {item?.consolidated?.participants.reduce((sum, participant) => {
-            return sum + participant.items.reduce((participantSum, i) => participantSum + (parseFloat(i.price) || 0), 0);
-          }, 0)} .00
+          My Owe: ₹{
+          item?.items?.reduce((sum, billItem) => {
+            // Find the consumer record for the logged-in person
+            
+            const consumer = billItem?.consumption?.consumers?.find(
+              (c) => c.person_id === LOGGED_IN_USER_ID
+            );
+            
+            // Add their amount if present
+            return sum + (consumer?.amount || 0);
+          }, 0).toFixed(2)
+        }
           </Text>
           <Text style={disable(item?.consolidated?.participants[0].status)?styles.owepriceTotal:styles.priceTotal}>
-          Total: ₹ {item?.items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0)}.00
+          Total: ₹ {item?.items.reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0).toFixed(2)}
         </Text>
          
       </View>

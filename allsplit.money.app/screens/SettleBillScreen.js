@@ -9,13 +9,15 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showToast } from "../utils/toastService";
 import { MyOwePrizeUpdate,closebill } from '../controllers/authController'; 
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 
 
 
 export default function SettleBillScreen({ route }) {
   const bill = route?.params?.bill;
-  const [LOGGED_IN_USER_ID, setLoginId] = useState("1"); 
+  
+  const [LOGGED_IN_USER_ID, setLoginId] = useState(""); 
   
 
   
@@ -42,6 +44,7 @@ export default function SettleBillScreen({ route }) {
             c => c.person_id === p.id
           );
           const qty = existing?.qty || 0;
+          
           return {
             person_id: p.id,
             qty,
@@ -78,11 +81,11 @@ export default function SettleBillScreen({ route }) {
           }
           
         }); 
-        // handleSave(itemId);
+         
         if(item.qty < currentQty){
           //console.log("Quantity cannot be more than total item quantity");
           showToast("danger", "Error", "Quantity cannot be more than total item quantity");
-          qty = 0;
+          qty = "00";
         }
          
         const consumers = item.consumption.consumers.map(c =>
@@ -102,9 +105,14 @@ export default function SettleBillScreen({ route }) {
                 "amount": parseFloat(c.unit_price * qty),
                 "person_id": LOGGED_IN_USER_ID,
                 "unit_price": parseFloat(c.unit_price),
-                "qty": qty?parseInt(qty):0,
+                "qty": qty !== "" ? parseInt(qty) : 0,
               };
-              if(qty !== 0){
+              if(!qty){
+                 
+                qty = "00";
+              }
+              if(qty !== "" && !isNaN(qty)){
+                 
                 handleSave(finalPayload1);
               }
           }
@@ -118,12 +126,10 @@ export default function SettleBillScreen({ route }) {
   };
 
    const handleSave = async (finalPayload1) => {
-      
-        console.log("Saving changes with payload:", finalPayload1); // Debug log
+       
         //return; // Stop execution here to check payload before API call
       
-        const response = await MyOwePrizeUpdate(finalPayload1); 
-        console.log("API Response:", response); // Debug log
+        const response = await MyOwePrizeUpdate(finalPayload1);  
         if(!response.success) {
           showToast('danger', 'WARNING!', 'Item price is exceed the limit.');
           //handlePriceChange(participantIndex, itemIndex, response.message);
@@ -131,107 +137,112 @@ export default function SettleBillScreen({ route }) {
     };
 
   const settlement = useMemo(() => {
+    if (!LOGGED_IN_USER_ID) {
+    // If login ID not yet loaded, return 0
+      return { myTotal: 0 };
+    }
     let myTotal = 0;
     
 
     items.forEach(item => {
       item.consumption.consumers.forEach(c => {
-       
+         
         if (c.person_id === LOGGED_IN_USER_ID) {
+           
           myTotal += c.amount;
         }
       });
     });
 
     return { myTotal };
-  }, [items]);
+  }, [items, LOGGED_IN_USER_ID]);
 
   return (
-    <FlatList
-      data={items}
-      keyExtractor={item => item.id}
-      ListHeaderComponent={
-        <Text style={styles.title}>Settle Bill</Text>
-      }
-      renderItem={({ item }) => {
-        const _id = item._id;
-        const isEditable = item.split_type === "consumption";
-        
-        const myConsumption = item.consumption.consumers.find(
-          c => c.person_id === LOGGED_IN_USER_ID
-        ); 
-        return (
-          <View style={styles.card}>
-            <Text style={styles.itemName}>
-              {item.name} (₹{item.price*item.qty})
-            </Text>
-
-            {/* 🔥 YOUR CONSUMPTION */}
-            <View style={[styles.rowBase, styles.myRow]}>
-              <Text style={[styles.nameCol, styles.youLabel]}>You</Text>
-
-              
-                {isEditable ? (
-                  <TextInput
-                    style={styles.qtyInput}
-                    keyboardType="numeric"
-                    value={String(myConsumption.qty)}
-                    onChangeText={q => updateQty(item.id, q)}
-                  />
-                ) : (
-                  <Text style={[styles.qtyCol, styles.lockedQty]}>
-                    {myConsumption.qty}
-                  </Text>
-                )}
-              
-
-              <Text style={[styles.amountCol, styles.amount]}>
-                ₹ {myConsumption.amount}
+    <SafeAreaView>
+      <Text style={styles.title}>Settle Bill</Text>
+      <FlatList style={styles.container}
+        data={items}
+        keyExtractor={item => item.id}
+       
+        renderItem={({ item }) => {
+          const _id = item._id;
+          const isEditable = item.split_type === "consumption";
+          
+          const myConsumption = item.consumption.consumers.find(
+            c => c.person_id === LOGGED_IN_USER_ID
+          ); 
+          return (
+            <View style={styles.card}>
+              <Text style={styles.itemName}>
+                {item.name} (₹{item.price*item.qty})
               </Text>
-            </View>
 
-            {/* 👥 OTHERS (READ ONLY) */}
-            {item.consumption.consumers
-              .filter(c => c.person_id !== LOGGED_IN_USER_ID)
-              .map(c => {
-                const person = bill.people.find(
-                  p => p.id === c.person_id
-                );
-                return (
-                  <View key={c.person_id} style={[styles.rowBase, styles.mylockRow]}>
-                    <Text style={[styles.nameCol, styles.otherName]}>
-                      {person.name}
-                    </Text>
+              {/* 🔥 YOUR CONSUMPTION */}
+              <View style={[styles.rowBase, styles.myRow]}>
+                <Text style={[styles.nameCol, styles.youLabel]}>You</Text>
 
+                
+                  {isEditable ? (
+                    <TextInput
+                      style={styles.qtyInput}
+                      keyboardType="numeric"
+                      value={String(myConsumption?.qty ?? 0)}
+                      onChangeText={q => updateQty(item.id, q)}
+                    />
+                  ) : (
                     <Text style={[styles.qtyCol, styles.lockedQty]}>
-                      {c.qty}
+                      {myConsumption?.qty}
                     </Text>
+                  )}
+                
 
-                    <Text style={[styles.amountCol, styles.amount]}>
-                      ₹ {c.amount}
-                    </Text>
-                  </View>
-                );
-              })}
-          </View>
-        );
-      }}
-      ListFooterComponent={
-        <View style={styles.footer}>
+                <Text style={[styles.amountCol, styles.amount]}>
+                  ₹ {myConsumption?.amount.toFixed(2)}
+                </Text>
+              </View>
+
+              {/* 👥 OTHERS (READ ONLY) */}
+              {item.consumption.consumers
+                .filter(c => c.person_id !== LOGGED_IN_USER_ID)
+                .map(c => {
+                  const person = bill.people.find(
+                    p => p.id === c.person_id
+                  );
+                  return (
+                    <View key={c.person_id} style={[styles.rowBase, styles.mylockRow]}>
+                      <Text style={[styles.nameCol, styles.otherName]}>
+                        {person.name}
+                      </Text>
+
+                      <Text style={[styles.qtyCol, styles.lockedQty]}>
+                        {c.qty}
+                      </Text>
+
+                      <Text style={[styles.amountCol, styles.amount]}>
+                        ₹ {c.amount.toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+            </View>
+          );
+        }}
+      
+      />
+    <View style={styles.footer}>
           <View style={styles.totalRow}>
             <Text style={styles.bold}>You Pay</Text>
             <Text style={styles.bold}>
-              ₹ {settlement.myTotal}
+              ₹ {settlement?.myTotal?.toFixed(2)}
             </Text>
           </View>
 
           <View style={styles.totalRow}>
             <Text>Total Bill</Text>
-            <Text>₹ {grandTotal}</Text>
+            <Text>₹ {grandTotal?.toFixed(2)}</Text>
           </View>
         </View>
-      }
-    />
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
@@ -239,6 +250,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     margin: 16,
+  },
+  container: {
+    height: "80%",
   },
   card: {
     backgroundColor: "#FFF",
@@ -284,6 +298,7 @@ const styles = StyleSheet.create({
     padding: 6,
     textAlign: "center",
     backgroundColor: "#FFF",
+    color: "#1A9B4B",
   },
   amount: {
     width: 80,

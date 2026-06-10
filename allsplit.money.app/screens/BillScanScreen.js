@@ -73,7 +73,7 @@ export default function BillScanScreen({ navigation,route }) {
   }, [splitData.type]);
 
   const choosePhoto = () => {
-    console.log("Opening image library for bill upload...");
+    
         launchImageLibrary({mediaType: 'photo'}, (response) => {
           if (!response.didCancel && !response.errorCode) {
             setPhoto(response.assets[0].uri);
@@ -116,7 +116,7 @@ export default function BillScanScreen({ navigation,route }) {
 
   /* ========= Send Image to Backend ========= */
   const uploadBill = async (imageUri) => {
-    console.log("Uploading bill with image URI:", imageUri);
+    
     
     try {
       setLoading(true);
@@ -129,23 +129,23 @@ export default function BillScanScreen({ navigation,route }) {
       });
       
       const data = await SendBillScan(formData);     
-      console.log("Received items from bill scan:", JSON.stringify(data.items));
+      
       if (data.success) {
         const mappedItems = data.items.map((item, index) => ({
           id: index.toString(),
-          name: item.item,
+          name: item.name,
           price: item.amount,
-          qty: 1,
-          splitEqual: true,
+          qty: 1, 
+          split: "equal"
         }));
 
         setItems(mappedItems);
       } else {
-        alert("Failed to read bill");
+        ShowToast("danger","WARNING!","Failed to read bill");
       }
     } catch (err) {
       console.log("AllSplit API Error:", err);
-      alert("Bill scan failed");
+      ShowToast("danger","WARNING!","Bill scan failed");
     } finally {
       setLoading(false);
     }

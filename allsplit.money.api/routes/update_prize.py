@@ -34,13 +34,14 @@ def update_price(update: ItemUpdate):
 
     result = SplitCollection.update_one(query, update_op, array_filters=array_filters)
 
-    print(result)
+    
 
     updated_doc = SplitCollection.find_one({"_id": ObjectId(update.id)})
     if updated_doc:
         updated_doc["_id"] = str(updated_doc["_id"])  # serialize ObjectId
 
     return {
+        "success": True,
         "message": "Price updated successfully",
         "updated_doc": updated_doc
     }

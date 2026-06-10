@@ -6,7 +6,8 @@ from core.database import people_collection as PeopleCollection
 router = APIRouter(prefix="", tags=["Contacts"])
 
 class ItemUpdate(BaseModel):
-    name: str                # MongoDB document _id (string)
+    firstname: str                # MongoDB document _id (string)
+    lastname: str
     phone: str   # Participant name to match
 @router.post("/add-contacts")
 def add_contacts(update: ItemUpdate):
@@ -16,7 +17,8 @@ def add_contacts(update: ItemUpdate):
     people = [
         {
             "_id": str(int(people_id) + 1),   # use _id for MongoDB primary key
-            "name": update.name,
+            "lastname": update.lastname,
+            "firstname": update.firstname,
             "phone": update.phone
         }
     ]
@@ -24,15 +26,16 @@ def add_contacts(update: ItemUpdate):
     # Insert documents
     result = PeopleCollection.insert_many(people)
 
+    contacts = list(PeopleCollection.find({}))
     # Return inserted IDs
-    return {"inserted_ids": [str(_id) for _id in result.inserted_ids]}
+    return {"success": True, "contacts": contacts}
 
 
 @router.get("/get-contacts")
 def get_contacts():
     # Fetch all documents
     contacts = list(PeopleCollection.find({}))
-
-    print(contacts)
+    
+     
     # Return contacts
     return {"contacts": contacts}

@@ -31,7 +31,7 @@ export const verifyOtp = async (jsonData) => {
 export const SendBillScan = async (formData) => {
   try {
     
-   const res = await fetch(`${BASE_URL}/ocr/scan-bill`, {
+   const res = await fetch(`${BASE_URL}/textract/scan`, {
         method: "POST",
         headers: {
           "Content-Type": "multipart/form-data",
@@ -199,3 +199,25 @@ export const closebill = async (formData) => {
       return { message: "Failed to fetch My Owe List", success: false };
     }
 };
+
+export const addnewcontact = async (formData) => {
+  try { 
+     
+   const res = await fetch(`${BASE_URL}/add-contacts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+       
+      const data = await res.json();
+      console
+      
+      return data;
+    } catch (err) {
+      console.log("AllSplit API Log:", err);
+      return { message: "Failed to fetch My Owe List", success: false };
+    }
+};
+ 

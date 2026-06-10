@@ -17,8 +17,10 @@ import { showToast } from '../utils/toastService';
 export default function BillDetailsScreen({ navigation,route }) {
   const [people, setPeople] = useState([]);
   const [items, setItems] = useState([]);
+  const [split_name,setSplit_name]= useState('');
    useFocusEffect(
   useCallback(() => {
+     
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
@@ -31,14 +33,40 @@ export default function BillDetailsScreen({ navigation,route }) {
   }, [navigation])
 );
   useEffect(() => {
+    
     if (route.params?.selectedPeople) {
       setPeople(route.params.selectedPeople);
     }
     if (route.params?.Items) {
       setItems(route.params.Items);
     }
+    if (route.params?.split_name) {
+      setSplit_name(route.params.split_name);
+    }else{
+      generateRandomNumber();
+    }
   }, [route.params?.selectedPeople]);
 
+  const generateRandomNumber = () => {
+  // Get today's date
+  const today = new Date();
+
+  // Format ddmmyy
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-based
+  const yy = String(today.getFullYear()).slice(-4);
+
+  const datePart = dd + mm + yy;
+
+  // Generate random 4-digit number
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+
+  // Combine
+  const finalNumber = datePart + ' - ' + randomPart;
+
+  // Set into state
+  setSplit_name(finalNumber);
+};
   const addNewItem = () => {
   const newItem = {
     id: Date.now().toString(),
@@ -59,7 +87,10 @@ export default function BillDetailsScreen({ navigation,route }) {
       )
     );
   };
-
+  const fnSplit_name = (val) => {
+    setSplit_name(val);
+     
+  };
   const updateItem = (id, field, value) => {
     setItems(prev =>
       prev.map(item =>
@@ -76,9 +107,11 @@ export default function BillDetailsScreen({ navigation,route }) {
   );
 
    const buildBillPayload = () => {
+    
   const totalPeople = people.length;
 
   return {
+    split_name:split_name,
     bill_summary: {
       total_amount: totalAmount,
       total_items: items.length,
@@ -154,7 +187,7 @@ export default function BillDetailsScreen({ navigation,route }) {
             value={String(item.name)}
             onChangeText={val => updateItemText(item.id, "name", val)}
           />
-          // remove row with X button
+           
           <TouchableOpacity
             style={{ position: "absolute", top: 8, right: 8 }}
             onPress={() => {
@@ -215,14 +248,12 @@ export default function BillDetailsScreen({ navigation,route }) {
     
         if (response.status) { 
           showToast('info', 'SUCCESS!', 'All split money bill created.');
-          //navigation.navigate("MyOwe");
+          navigation.navigate("MyOwe");
         } else {
           alert(response.message);
         }
-    //console.log(JSON.stringify(payload)); return;
-    navigation.navigate("SettleBill", {
-            bill: payload,
-          })
+     
+    
 
     // Example navigation / API usage
     // navigation.navigate("BillSummary", { payload });
@@ -232,17 +263,17 @@ export default function BillDetailsScreen({ navigation,route }) {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.header}>         
           <View style={{ flexDirection: "row", alignItems: "center", width: "100%" }}>
-  <Text style={styles.amount}>₹ {totalAmount}</Text>
+            <Text style={styles.amount}>₹ {totalAmount.toFixed(2)}</Text>
 
-  <TouchableOpacity
-    style={[styles.addItemBtn, { marginLeft: "auto" }]} // ✅ pushes to right
-    onPress={addNewItem}
-  >
-    <Text style={styles.addItemPlus}>＋</Text>
-  </TouchableOpacity>
-</View>
+            <TouchableOpacity
+              style={[styles.addItemBtn, { marginLeft: "auto" }]} // ✅ pushes to right
+              onPress={addNewItem}
+            >
+              <MaterialCommunityIcons name="plus" size={30} color="white" />
+            </TouchableOpacity>
+          </View>
 
       </View>
       <View style={styles.addPeopleContainer}>
@@ -254,7 +285,7 @@ export default function BillDetailsScreen({ navigation,route }) {
     style={styles.addBtn}
     onPress={() =>
       navigation.navigate("People", {
-        selectedPeople: people, Items: items
+        selectedPeople: people, Items: items,split_name : split_name
       })
     }
   >
@@ -290,7 +321,7 @@ export default function BillDetailsScreen({ navigation,route }) {
   style={styles.proceedBtn}
   onPress={handleFinalSubmit}
 >
-  <Text style={styles.proceedText}>Proceed</Text>
+  <MaterialCommunityIcons name="chevron-right" size={30} color="white" />
 </TouchableOpacity>
     </SafeAreaView>
   );
@@ -316,6 +347,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F6F7FB",
+    height: "100%",
   },
   addPeopleContainer: {
     paddingHorizontal: 16,
@@ -414,21 +446,34 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#1A9B4B",
     borderRadius: 8,
     paddingVertical: 6,
     textAlign: "center",
     backgroundColor: "#fff",
+    color: "#1A9B4B"
+  },
+   splitinput: {
+    borderWidth: 1,
+    borderColor: "#1A9B4B",
+    borderRadius: 8,
+    paddingVertical: 6,
+    textAlign: "left",
+    backgroundColor: "#fff",
+    fontSize: 16,
+    width: "100%",
+    color: "#1A9B4B"
   },
   standardinput: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#1A9B4B",
     borderRadius: 8,
     paddingVertical: 6,
     textAlign: "left",
     backgroundColor: "#fff",
     fontSize: 16,
     width: "95%",
+    color: "#1A9B4B"
   },
   total: {
     paddingVertical: 8,
@@ -465,13 +510,15 @@ const styles = StyleSheet.create({
   },
 
   proceedBtn: {
-    position: "absolute",
-    bottom: 24,
-    left: 16,
-    right: 16,
-    backgroundColor: "#1A9B4B",
-    padding: 18,
-    borderRadius: 16,
+    position: 'absolute',
+        right: 20,
+        bottom: 75,
+        backgroundColor: "#1A9B4B",
+        borderRadius: 30,
+        padding: 16,
+        elevation: 4,
+    
+    
   },
 
   proceedText: {
@@ -479,6 +526,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
     fontSize: 16,
+    
   },
   addItemRow: {
   flexDirection: "row",

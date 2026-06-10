@@ -46,13 +46,7 @@ export default function BillScannerScreen({ photo,navigation }) {
   <View style={styles.cornerBR} />
 </View>
 
-      <TouchableOpacity
-        style={styles.manualBtn}
-        onPress={() => navigation.navigate("Details")}
-      >
-        <Text style={styles.manualText}>Enter amount manually</Text>
-        
-      </TouchableOpacity>
+      
     </View>
   );
 }
