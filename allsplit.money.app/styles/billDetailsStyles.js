@@ -1,0 +1,197 @@
+import { StyleSheet } from "react-native";
+
+export function createBillDetailsStyles(colors) {
+  return StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    height: "100%",
+  },
+  statusBarFill: {
+    backgroundColor: colors.primary,
+  },
+  addPeopleContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.lightGreen,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  avatarText: {
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  addBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  plus: {
+    fontSize: 28,
+    color: colors.textMuted,
+    marginTop: -2,
+  },
+  placeholder: {
+    marginTop: 40,
+    alignItems: "center",
+  },
+  header: {
+    backgroundColor: colors.primary,
+    padding: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTitle: {
+    color: colors.white,
+    fontSize: 18,
+  },
+  amount: {
+    color: colors.white,
+    fontSize: 28,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+  card: {
+    backgroundColor: colors.white,
+    margin: 16,
+    padding: 16,
+    borderRadius: 16,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  field: {
+    flex: 1,
+    marginRight: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 4,
+    textAlign: "center",
+    margin: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 6,
+    textAlign: "center",
+    backgroundColor: colors.white,
+    color: colors.primary,
+  },
+  splitinput: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 6,
+    textAlign: "left",
+    backgroundColor: colors.white,
+    fontSize: 16,
+    width: "100%",
+    color: colors.primary,
+  },
+  standardinput: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 6,
+    textAlign: "left",
+    backgroundColor: colors.white,
+    fontSize: 16,
+    width: "95%",
+    color: colors.primary,
+  },
+  total: {
+    paddingVertical: 8,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  splitRow: {
+    flexDirection: "row",
+    marginTop: 16,
+  },
+  splitBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 12,
+  },
+  splitBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.lightGreen,
+  },
+  splitText: {
+    color: colors.textDark,
+  },
+  splitTextActive: {
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  proceedBtn: {
+    position: "absolute",
+    right: 20,
+    bottom: 75,
+    backgroundColor: colors.primary,
+    borderRadius: 30,
+    padding: 16,
+    elevation: 4,
+  },
+  proceedText: {
+    color: colors.white,
+    textAlign: "center",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  addItemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  addItemText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
+  },
+  addItemBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addItemPlus: {
+    color: colors.white,
+    fontSize: 22,
+    fontWeight: "700",
+    marginTop: -2,
+  },
+});
+}

@@ -1,0 +1,144 @@
+import { StyleSheet } from "react-native";
+
+export function createDashboardStyles(colors) {
+  return StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  statusBarFill: {
+    backgroundColor: colors.primary,
+  },
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: colors.white,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#E8F5E9",
+    marginTop: 4,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statsRow: {
+    flexDirection: "row",
+    marginTop: 8,
+  },
+  statCard: {
+    flex: 1,
+    marginHorizontal: 4,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 14,
+    elevation: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.primaryDark,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textDark,
+    marginBottom: 12,
+  },
+  actionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  actionCard: {
+    width: "48%",
+    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    elevation: 2,
+  },
+  actionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.lightGreen,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
+    textAlign: "center",
+  },
+  recentCard: {
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  recentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  recentTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textDark,
+    flex: 1,
+  },
+  recentMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  recentAmount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: colors.textMuted,
+    marginTop: 20,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+}

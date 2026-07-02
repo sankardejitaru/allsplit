@@ -1,0 +1,218 @@
+import { StyleSheet } from "react-native";
+
+export function createSettleBillStyles(colors) {
+  return StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8F9FB",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8F9FB",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: colors.textMuted,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  headerBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  title: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: "700",
+    marginVertical: 8,
+    textAlign: "center",
+    color: colors.textDark,
+  },
+  warningText: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    color: "#c0392b",
+  },
+  closedBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  container: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: colors.white,
+    margin: 12,
+    padding: 12,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  itemName: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  myRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.lightGreen,
+    padding: 8,
+    borderRadius: 8,
+    width: "100%",
+    marginVertical: 3,
+  },
+  mylockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    borderRadius: 8,
+    width: "100%",
+    marginVertical: 3,
+  },
+  youLabel: {
+    flex: 1,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  qtyInput: {
+    width: 60,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 6,
+    padding: 6,
+    textAlign: "center",
+    backgroundColor: colors.white,
+    color: colors.primary,
+  },
+  amount: {
+    width: 80,
+    textAlign: "right",
+    fontWeight: "600",
+  },
+  otherName: {
+    flex: 1,
+    color: colors.textMuted,
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: "#F8F9FB",
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 3,
+  },
+  bold: {
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  lockedQty: {
+    width: 60,
+    textAlign: "center",
+    color: colors.muted,
+    fontWeight: "600",
+  },
+  rowBase: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  nameCol: {
+    flex: 1,
+  },
+  qtyCol: {
+    width: 70,
+    alignItems: "center",
+  },
+  amountCol: {
+    width: 90,
+    alignItems: "flex-end",
+  },
+  closeButton: {
+    marginTop: 16,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  closeButtonDisabled: {
+    opacity: 0.6,
+  },
+  closeButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  confirmBox: {
+    width: "100%",
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    elevation: 4,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.primary,
+    marginBottom: 10,
+  },
+  confirmMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textDark,
+    marginBottom: 20,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  confirmCancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#F0F0F0",
+    marginRight: 12,
+  },
+  confirmCancelText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  confirmPrimaryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  confirmPrimaryText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+});
+}

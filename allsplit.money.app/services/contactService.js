@@ -1,0 +1,40 @@
+import { apiGet, apiPost } from "./apiClient";
+import { normalizeParticipantPhone } from "../utils/phoneUtils";
+
+export const getContact = async (formData) => {
+  const data = await apiGet("/get-contacts", formData);
+  if (data.success === false && !data.message) {
+    return { message: "Failed to fetch contacts", success: false };
+  }
+  return data;
+};
+
+export const addnewcontact = async (formData) => {
+  const data = await apiPost("/add-contacts", {
+    ...formData,
+    phone: normalizeParticipantPhone(formData.phone),
+  });
+  if (data.success === false && !data.message) {
+    return { message: "Failed to add contact", success: false };
+  }
+  return data;
+};
+
+export const ensureSelfSavedContact = async (phone) => {
+  const normalized = normalizeParticipantPhone(phone);
+  if (!normalized) {
+    return { success: false, created: false };
+  }
+
+  const data = await apiPost("/ensure-self-contact", {
+    phone: normalized,
+    firstname: "Self",
+    lastname: "",
+  });
+
+  if (data.success === false && !data.message) {
+    return { message: "Failed to save your contact", success: false, created: false };
+  }
+
+  return data;
+};

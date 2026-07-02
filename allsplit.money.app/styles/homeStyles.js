@@ -1,0 +1,197 @@
+import { StyleSheet } from "react-native";
+
+export function createHomeStyles(colors) {
+  return StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  addButtonContainer: {
+    flexDirection: "row",
+    margin: 5,
+  },
+  plusButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 40,
+    backgroundColor: colors.primary,
+    borderRadius: 30,
+    padding: 16,
+    elevation: 4,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: colors.white,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: "bold",
+    color: colors.textDark,
+    textAlign: "center",
+  },
+  addButton: {
+    backgroundColor: colors.success,
+    borderRadius: 12,
+    padding: 5,
+    marginLeft: 10,
+  },
+  listPadding: {
+    padding: 15,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  iconContainer: {
+    backgroundColor: colors.lightGreen,
+    padding: 10,
+    borderRadius: 12,
+    marginRight: 15,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  splitName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.textDark,
+  },
+  dateText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: 12,
+    alignItems: "center",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stat: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 15,
+  },
+  statText: {
+    fontSize: 13,
+    color: "#666",
+    marginLeft: 5,
+  },
+  priceTotal: {
+    marginLeft: "auto",
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.success,
+    textAlign: "right",
+  },
+  owepriceTotal: {
+    marginLeft: "auto",
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.textMuted,
+    textAlign: "right",
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 100,
+    color: "#999",
+  },
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    flex: 1,
+    marginTop: 150,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tagline: {
+    fontSize: 20,
+    color: colors.primary,
+  },
+  logo: {
+    width: 130,
+    height: 130,
+    alignSelf: "left",
+    backgroundColor: colors.white,
+  },
+  fabContainer: {
+    position: "relative",
+    bottom: 30,
+    right: 30,
+    alignItems: "center",
+  },
+  fab: {
+    backgroundColor: colors.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+  },
+  subMenu: {
+    marginTop: 100,
+    marginLeft: 200,
+    position: "absolute",
+    marginBottom: 10,
+    alignItems: "flex-end",
+  },
+  subButton: {
+    width: 140,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 5,
+  },
+  subText: {
+    color: "#fff",
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    marginBottom: 50,
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  optionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  optionText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: "#333",
+  },
+});
+}
