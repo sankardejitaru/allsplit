@@ -18,6 +18,11 @@ class MarkSettledRequest(BaseModel):
     person_id: str
 
 
+class ReopenShareRequest(BaseModel):
+    id: str
+    person_id: str
+
+
 class CreatedSplitsListRequest(BaseModel):
     device_id: str
 
@@ -27,7 +32,7 @@ class UpdatePriceRequest(BaseModel):
     item_id: str
     amount: float
     person_id: str
-    qty: int
+    qty: float
     unit_price: float
 
 

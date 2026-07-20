@@ -11,6 +11,7 @@ from app.schemas.split import (
     CreatedSplitsListRequest,
     MarkSettledRequest,
     MyOweListRequest,
+    ReopenShareRequest,
     SaveSplitRequest,
     UpdatePriceRequest,
 )
@@ -312,7 +313,11 @@ def close_bill(
                 "people.$[person].status": "closed",
                 "people.$[person].settlement": "pending",
                 "people.$[person].closed_at": now,
-            }
+            },
+            "$unset": {
+                "people.$[person].reopened_at": "",
+                "people.$[person].reopened_by": "",
+            },
         },
         array_filters=[people_filter],
     )
@@ -515,5 +520,165 @@ def mark_settled(
     return {
         "success": True,
         "message": "Payment marked as received",
+        "updated_doc": updated_doc,
+    }
+
+
+@router.post("/reopen-share")
+def reopen_share(
+    update: ReopenShareRequest,
+    actor_mobile: Optional[str] = Depends(get_actor_mobile),
+):
+    try:
+        query = {"_id": ObjectId(update.id)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    document = split_collection.find_one(query)
+    if not document:
+        audit_event(
+            action="split.reopen_share",
+            category="split",
+            status="failure",
+            message="Document not found",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+        )
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not is_split_creator(document, actor_mobile):
+        audit_event(
+            action="split.reopen_share",
+            category="split",
+            status="failure",
+            message="Only the bill creator can reopen a participant share",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+            details={"person_id": update.person_id},
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Only the bill creator can reopen participant shares",
+        )
+
+    target_person = find_person_by_id(document.get("people") or [], update.person_id)
+    if not target_person:
+        audit_event(
+            action="split.reopen_share",
+            category="split",
+            status="failure",
+            message="Participant not found on bill",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+            details={"person_id": update.person_id},
+        )
+        raise HTTPException(status_code=404, detail="Participant not found on bill")
+
+    if phones_match(target_person.get("phone"), get_creator_mobile(document)):
+        audit_event(
+            action="split.reopen_share",
+            category="split",
+            status="failure",
+            message="Creator cannot reopen their own share",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+            details={"person_id": update.person_id},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Creator cannot reopen their own share",
+        )
+
+    if target_person.get("status") != "closed":
+        audit_event(
+            action="split.reopen_share",
+            category="split",
+            status="failure",
+            message="Participant share is not closed",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+            details={"person_id": update.person_id},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Participant share is not closed",
+        )
+
+    previous_settlement = get_person_settlement(target_person)
+    now = datetime.utcnow()
+    people_filter = {"person.id": {"$eq": update.person_id}}
+
+    split_collection.update_one(
+        query,
+        {
+            "$set": {
+                "people.$[person].status": "open",
+                "people.$[person].reopened_at": now,
+                "people.$[person].reopened_by": actor_mobile,
+            },
+            "$unset": {
+                "people.$[person].settlement": "",
+                "people.$[person].closed_at": "",
+                "people.$[person].settled_at": "",
+                "people.$[person].settled_by": "",
+            },
+        },
+        array_filters=[people_filter],
+    )
+
+    if target_person.get("name") and document.get("consolidated", {}).get("participants"):
+        split_collection.update_one(
+            query,
+            {
+                "$set": {
+                    "consolidated.participants.$[p].status": "open",
+                },
+                "$unset": {
+                    "consolidated.participants.$[p].settlement": "",
+                },
+            },
+            array_filters=[{"p.name": {"$eq": target_person.get("name")}}],
+        )
+
+    updated_doc = split_collection.find_one(query)
+    if updated_doc:
+        updated_doc = serialize_doc(updated_doc)
+        bill_status = derive_bill_settlement_status(
+            updated_doc.get("people") or [],
+            get_creator_mobile(updated_doc),
+        )
+        updated_doc["bill_settlement_status"] = bill_status
+        split_collection.update_one(
+            query,
+            {"$set": {"meta.bill_settlement_status": bill_status}},
+        )
+
+    owe_amount = get_person_owe_amount(document, update.person_id)
+
+    audit_event(
+        action="split.reopen_share",
+        category="split",
+        status="success",
+        message="Creator reopened participant share for reconsideration",
+        actor_mobile=actor_mobile,
+        resource_type="split",
+        resource_id=update.id,
+        details={
+            "person_id": update.person_id,
+            "participant_name": target_person.get("name"),
+            "participant_mobile": target_person.get("phone"),
+            "previous_settlement": previous_settlement,
+            "owe_amount": owe_amount,
+            "bill_settlement_status": updated_doc.get("bill_settlement_status"),
+        },
+    )
+    return {
+        "success": True,
+        "message": "Share reopened. Participant can review and close again.",
         "updated_doc": updated_doc,
     }

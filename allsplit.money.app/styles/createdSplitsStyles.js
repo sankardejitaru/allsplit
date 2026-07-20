@@ -116,121 +116,182 @@ export function createManageSettlementStyles(colors) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       backgroundColor: colors.white,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
     headerTitle: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: "700",
       color: colors.textDark,
       flex: 1,
       textAlign: "center",
     },
     iconButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.lightGreen,
       alignItems: "center",
       justifyContent: "center",
     },
-    summaryCard: {
+    summaryBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
       backgroundColor: colors.white,
-      margin: 16,
-      borderRadius: 14,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+      gap: 12,
     },
     summaryTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textDark,
-      marginBottom: 4,
-    },
-    summaryMeta: {
-      fontSize: 13,
-      color: colors.textMuted,
-    },
-    sectionTitle: {
+      flex: 1,
       fontSize: 14,
       fontWeight: "700",
-      color: colors.textMuted,
-      marginHorizontal: 16,
-      marginBottom: 8,
-      textTransform: "uppercase",
+      color: colors.textDark,
     },
-    participantCard: {
+    summaryMeta: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: colors.textMuted,
+      textTransform: "capitalize",
+    },
+    listContent: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      paddingBottom: 16,
+    },
+    loader: {
+      marginVertical: 12,
+    },
+    compactRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
       backgroundColor: colors.white,
-      marginHorizontal: 16,
-      marginBottom: 10,
-      borderRadius: 12,
-      padding: 14,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.borderLight,
     },
-    participantRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+    compactRowReopened: {
+      borderColor: colors.primary,
+      backgroundColor: colors.lightGreen,
     },
-    participantName: {
-      fontSize: 16,
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 8,
+    },
+    compactInfo: {
+      flex: 1,
+      marginRight: 8,
+    },
+    compactName: {
+      fontSize: 14,
       fontWeight: "600",
       color: colors.textDark,
     },
-    participantAmount: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: colors.primary,
+    compactMeta: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 1,
     },
-    participantMeta: {
-      marginTop: 8,
+    compactActions: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
+      gap: 6,
     },
-    statusPill: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 10,
+    iconActionBtn: {
+      minWidth: 28,
+      height: 28,
+      paddingHorizontal: 6,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.white,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconActionBtnPrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    iconActionBtnDisabled: {
+      opacity: 0.55,
     },
     statusOpen: {
-      backgroundColor: "#fff4e5",
+      backgroundColor: colors.muted,
     },
     statusClosed: {
-      backgroundColor: "#e8f1ff",
+      backgroundColor: colors.primary,
     },
     statusSettled: {
-      backgroundColor: colors.lightGreen,
+      backgroundColor: colors.primaryDark,
     },
-    statusPillText: {
-      fontSize: 11,
-      fontWeight: "700",
-      textTransform: "uppercase",
-    },
-    settleButton: {
+    statusReopened: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 8,
     },
-    settleButtonDisabled: {
-      opacity: 0.6,
+    statusOpenText: {
+      color: colors.textMuted,
     },
-    settleButtonText: {
-      color: colors.white,
-      fontWeight: "700",
-      fontSize: 13,
+    statusClosedText: {
+      color: colors.primaryDark,
+    },
+    statusSettledText: {
+      color: colors.primaryDark,
+    },
+    statusReopenedText: {
+      color: colors.primaryDark,
     },
     emptyText: {
       textAlign: "center",
       color: colors.textMuted,
       marginTop: 24,
       paddingHorizontal: 24,
+      fontSize: 13,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "center",
+      padding: 24,
+    },
+    modalCard: {
+      backgroundColor: colors.white,
+      borderRadius: 14,
+      padding: 18,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: colors.textDark,
+      marginBottom: 8,
+    },
+    modalMessage: {
+      color: colors.textMuted,
+      marginBottom: 18,
+      lineHeight: 20,
+      fontSize: 14,
+    },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 16,
+    },
+    modalCancelText: {
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    modalConfirmText: {
+      color: colors.primary,
+      fontWeight: "700",
     },
   });
 }

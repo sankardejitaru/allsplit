@@ -27,6 +27,8 @@ import {
   normalizeDbContact,
   normalizeDeviceContact,
   normalizePerson,
+  matchesContactSearch,
+  filterDeviceContactsExcludingSaved,
 } from "../../utils/phoneUtils";
 
 const TABS = [
@@ -141,21 +143,10 @@ export default function SelectPeopleScreen({ navigation, route }) {
   const displayedPeople = useMemo(() => {
     const source =
       activeTab === "device"
-        ? deviceContacts
+        ? filterDeviceContactsExcludingSaved(deviceContacts, savedContacts)
         : savedContacts.map(normalizeDbContact).filter(Boolean);
 
-    if (!search.trim()) {
-      return source;
-    }
-
-    const query = search.trim().toLowerCase();
-    const queryDigits = query.replace(/\D/g, "");
-    return source.filter(
-      (person) =>
-        person.name.toLowerCase().includes(query) ||
-        person.phone.includes(queryDigits) ||
-        formatPhoneDisplay(person.phone).toLowerCase().includes(query)
-    );
+    return source.filter((person) => matchesContactSearch(person, search));
   }, [activeTab, deviceContacts, savedContacts, search]);
 
   const togglePerson = (person) => {
@@ -311,6 +302,7 @@ export default function SelectPeopleScreen({ navigation, route }) {
           data={displayedPeople}
           keyExtractor={(item) => item.id}
           renderItem={renderPerson}
+          extraData={search}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={

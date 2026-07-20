@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 
 /** API host or full base URL (no trailing slash). */
-const LOCAL_DEV_IP = "http://10.117.45.56:8000";
+const LOCAL_DEV_IP = "http://192.168.1.10:8000";
 const API_PORT = 8000;
 
 function isFullUrl(value) {

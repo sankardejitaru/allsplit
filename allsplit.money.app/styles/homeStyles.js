@@ -52,6 +52,11 @@ export function createHomeStyles(colors) {
     shadowOpacity: 0.1,
     shadowRadius: 5,
   },
+  cardReopened: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.lightGreen,
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -70,6 +75,23 @@ export function createHomeStyles(colors) {
     fontSize: 18,
     fontWeight: "bold",
     color: colors.textDark,
+  },
+  reopenedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: colors.lightGreen,
+  },
+  reopenedBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primaryDark,
+    textTransform: "uppercase",
   },
   dateText: {
     fontSize: 12,

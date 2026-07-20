@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DeviceInfo from "react-native-device-info";
-import { createdSplitsList, markSettled } from "../../services/splitService";
+import { createdSplitsList, markSettled, reopenShare } from "../../services/splitService";
 import { createManageSettlementStyles } from "../../styles";
 import { useThemedStyles } from "../../hooks/useThemedStyles";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -24,14 +24,21 @@ import {
   getBillSettlementStatus,
   getPersonOweForSplit,
   getPersonSettlement,
+  canCreatorReopenShare,
+  canCreatorMarkReceived,
+  isShareReopened,
 } from "../../utils/splitStats";
 import { goBackOrNavigate } from "../../utils/navigationHelpers";
 import { useHardwareBack } from "../../hooks/useHardwareBack";
 
-function settlementLabel(status) {
+function settlementLabel(status, person) {
+  if (isShareReopened(person)) {
+    return "Reopened";
+  }
+
   switch (status) {
     case "settled":
-      return "Settled";
+      return "Received";
     case "pending":
       return "Closed";
     default:
@@ -39,14 +46,18 @@ function settlementLabel(status) {
   }
 }
 
-function settlementStyle(status, styles) {
+function settlementStyle(status, styles, person) {
+  if (isShareReopened(person)) {
+    return { pill: styles.statusReopened, text: styles.statusReopenedText };
+  }
+
   switch (status) {
     case "settled":
-      return { pill: styles.statusSettled, text: { color: "#0f5132" } };
+      return { pill: styles.statusSettled, text: styles.statusSettledText };
     case "pending":
-      return { pill: styles.statusClosed, text: { color: "#175cd3" } };
+      return { pill: styles.statusClosed, text: styles.statusClosedText };
     default:
-      return { pill: styles.statusOpen, text: { color: "#b54708" } };
+      return { pill: styles.statusOpen, text: styles.statusOpenText };
   }
 }
 
@@ -58,7 +69,9 @@ export default function ManageSettlementScreen({ route, navigation }) {
   const [userMobile, setUserMobileState] = useState(route?.params?.userMobile || "");
   const [loading, setLoading] = useState(false);
   const [settlingPersonId, setSettlingPersonId] = useState("");
+  const [reopeningPersonId, setReopeningPersonId] = useState("");
   const [confirmPerson, setConfirmPerson] = useState(null);
+  const [reopenPerson, setReopenPerson] = useState(null);
 
   const refreshBill = async () => {
     setLoading(true);
@@ -95,9 +108,13 @@ export default function ManageSettlementScreen({ route, navigation }) {
         setConfirmPerson(null);
         return true;
       }
+      if (reopenPerson) {
+        setReopenPerson(null);
+        return true;
+      }
       goBackOrNavigate(navigation, { screen: "CreatedSplits" });
       return true;
-    }, [confirmPerson, navigation])
+    }, [confirmPerson, reopenPerson, navigation])
   );
 
   const participants = useMemo(() => {
@@ -107,6 +124,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
   }, [bill?.people, userMobile]);
 
   const billStatus = getBillSettlementStatus(bill, userMobile);
+  const actionBusy = !!settlingPersonId || !!reopeningPersonId;
 
   const confirmMarkSettled = async () => {
     if (!confirmPerson || !bill?._id) {
@@ -121,7 +139,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
       });
 
       if (!response.success) {
-        showToast("danger", "Could not mark settled", response.message || response.detail || "Try again");
+        showToast("danger", "Could not mark received", response.message || response.detail || "Try again");
         return;
       }
 
@@ -131,12 +149,52 @@ export default function ManageSettlementScreen({ route, navigation }) {
         await refreshBill();
       }
 
-      showToast("info", "Payment received", `${confirmPerson.name} marked as settled`);
+      showToast("info", "Payment received", `${confirmPerson.name} marked as received`);
       setConfirmPerson(null);
     } catch (error) {
       showToast("danger", "Error", "Failed to mark payment as received");
     } finally {
       setSettlingPersonId("");
+    }
+  };
+
+  const confirmReopenShare = async () => {
+    if (!reopenPerson || !bill?._id) {
+      return;
+    }
+
+    try {
+      setReopeningPersonId(reopenPerson.id);
+      const response = await reopenShare({
+        id: bill._id,
+        person_id: reopenPerson.id,
+      });
+
+      if (!response.success) {
+        showToast(
+          "danger",
+          "Could not reopen",
+          response.message || response.detail || "Try again"
+        );
+        return;
+      }
+
+      if (response.updated_doc) {
+        setBill(response.updated_doc);
+      } else {
+        await refreshBill();
+      }
+
+      showToast(
+        "info",
+        "Share reopened",
+        `${reopenPerson.name} can review and close their share again.`
+      );
+      setReopenPerson(null);
+    } catch (error) {
+      showToast("danger", "Error", "Failed to reopen share");
+    } finally {
+      setReopeningPersonId("");
     }
   };
 
@@ -161,55 +219,91 @@ export default function ManageSettlementScreen({ route, navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>{bill.split_name || "Untitled split"}</Text>
-          <Text style={styles.summaryMeta}>
-            Bill status: {billStatus.replace(/_/g, " ")}
-          </Text>
-          <Text style={styles.summaryMeta}>
-            Mark participants as paid after they close their share.
-          </Text>
-        </View>
+      <View style={styles.summaryBar}>
+        <Text style={styles.summaryTitle} numberOfLines={1}>
+          {bill.split_name || "Untitled split"}
+        </Text>
+        <Text style={styles.summaryMeta}>{billStatus.replace(/_/g, " ")}</Text>
+      </View>
 
-        <Text style={styles.sectionTitle}>Participants</Text>
+      <ScrollView contentContainerStyle={styles.listContent}>
+        {loading ? (
+          <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
+        ) : null}
 
         {participants.length === 0 ? (
           <Text style={styles.emptyText}>No other participants on this bill.</Text>
         ) : (
           participants.map((person) => {
             const settlement = getPersonSettlement(person);
-            const pillStyle = settlementStyle(settlement, styles);
+            const pillStyle = settlementStyle(settlement, styles, person);
             const amount = getPersonOweForSplit(bill, person.id);
-            const canMarkSettled = settlement === "pending";
-            const isSubmitting = settlingPersonId === person.id;
+            const wasReopened = isShareReopened(person);
+            const canMarkReceived = canCreatorMarkReceived(bill, userMobile, person);
+            const canReopen = canCreatorReopenShare(bill, userMobile, person);
+            const isReceiving = settlingPersonId === person.id;
+            const isReopening = reopeningPersonId === person.id;
 
             return (
-              <View key={person.id} style={styles.participantCard}>
-                <View style={styles.participantRow}>
-                  <Text style={styles.participantName}>{person.name}</Text>
-                  <Text style={styles.participantAmount}>₹{amount.toFixed(2)}</Text>
+              <View
+                key={person.id}
+                style={[styles.compactRow, wasReopened && styles.compactRowReopened]}
+              >
+                <View style={[styles.statusDot, pillStyle.pill]} />
+                <View style={styles.compactInfo}>
+                  <Text style={styles.compactName} numberOfLines={1}>
+                    {person.name}
+                  </Text>
+                  <Text style={styles.compactMeta}>
+                    {settlementLabel(settlement, person)} · ₹{amount.toFixed(2)}
+                  </Text>
                 </View>
 
-                <View style={styles.participantMeta}>
-                  <View style={[styles.statusPill, pillStyle.pill]}>
-                    <Text style={[styles.statusPillText, pillStyle.text]}>
-                      {settlementLabel(settlement)}
-                    </Text>
-                  </View>
-
-                  {canMarkSettled ? (
+                <View style={styles.compactActions}>
+                  {canMarkReceived ? (
                     <TouchableOpacity
                       style={[
-                        styles.settleButton,
-                        isSubmitting && styles.settleButtonDisabled,
+                        styles.iconActionBtn,
+                        styles.iconActionBtnPrimary,
+                        actionBusy && styles.iconActionBtnDisabled,
                       ]}
-                      disabled={isSubmitting}
+                      disabled={actionBusy}
+                      activeOpacity={0.7}
                       onPress={() => setConfirmPerson(person)}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Mark ${person.name} as received`}
                     >
-                      <Text style={styles.settleButtonText}>
-                        {isSubmitting ? "Saving..." : "Mark as paid"}
-                      </Text>
+                      {isReceiving ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <Ionicons name="checkmark" size={15} color={colors.white} />
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {canReopen ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.iconActionBtn,
+                        actionBusy && styles.iconActionBtnDisabled,
+                      ]}
+                      disabled={actionBusy}
+                      activeOpacity={0.7}
+                      onPress={() => setReopenPerson(person)}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reopen ${person.name}'s share`}
+                    >
+                      {isReopening ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Ionicons
+                          name="refresh-outline"
+                          size={15}
+                          color={colors.primary}
+                        />
+                      )}
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -225,28 +319,59 @@ export default function ManageSettlementScreen({ route, navigation }) {
         animationType="fade"
         onRequestClose={() => !settlingPersonId && setConfirmPerson(null)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 24 }}>
-          <View style={{ backgroundColor: colors.white, borderRadius: 14, padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: colors.textDark, marginBottom: 8 }}>
-              Confirm payment received
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Mark as received</Text>
+            <Text style={styles.modalMessage}>
+              Confirm ₹{getPersonOweForSplit(bill, confirmPerson?.id).toFixed(2)} received
+              from {confirmPerson?.name}?
             </Text>
-            <Text style={{ color: colors.textMuted, marginBottom: 20 }}>
-              Mark {confirmPerson?.name}&apos;s share of ₹
-              {getPersonOweForSplit(bill, confirmPerson?.id).toFixed(2)} as paid?
-            </Text>
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+            <View style={styles.modalActions}>
               <TouchableOpacity
                 onPress={() => setConfirmPerson(null)}
                 disabled={!!settlingPersonId}
               >
-                <Text style={{ color: colors.textMuted, fontWeight: "600" }}>Cancel</Text>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={confirmMarkSettled}
                 disabled={!!settlingPersonId}
               >
-                <Text style={{ color: colors.primary, fontWeight: "700" }}>
-                  {settlingPersonId ? "Saving..." : "Mark as paid"}
+                <Text style={styles.modalConfirmText}>
+                  {settlingPersonId ? "Saving..." : "Mark received"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        visible={!!reopenPerson}
+        animationType="fade"
+        onRequestClose={() => !reopeningPersonId && setReopenPerson(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Reopen share</Text>
+            <Text style={styles.modalMessage}>
+              Reopen {reopenPerson?.name}&apos;s share of ₹
+              {getPersonOweForSplit(bill, reopenPerson?.id).toFixed(2)}?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setReopenPerson(null)}
+                disabled={!!reopeningPersonId}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmReopenShare}
+                disabled={!!reopeningPersonId}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {reopeningPersonId ? "Reopening..." : "Reopen"}
                 </Text>
               </TouchableOpacity>
             </View>

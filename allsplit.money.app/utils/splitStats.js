@@ -43,6 +43,14 @@ export const getPersonSettlement = (person) => {
   return person?.settlement || "pending";
 };
 
+export const isShareReopened = (person) =>
+  Boolean(person?.reopened_at) && person?.status !== "closed";
+
+export const isUserShareReopened = (split, userMobile) => {
+  const person = findPersonByPhone(split?.people ?? [], userMobile);
+  return isShareReopened(person);
+};
+
 export const getPersonOweForSplit = (split, personId) => {
   if (!personId) {
     return 0;
@@ -63,6 +71,42 @@ export const isSplitCreator = (split, userMobile) => {
   }
 
   return findPersonByPhone([{ phone: creatorMobile }], userMobile) !== null;
+};
+
+export const canCreatorReopenShare = (split, userMobile, person) => {
+  if (!isSplitCreator(split, userMobile) || !person) {
+    return false;
+  }
+
+  if (findPersonByPhone([person], userMobile)) {
+    return false;
+  }
+
+  return person.status === "closed";
+};
+
+export const canCreatorMarkReceived = (split, userMobile, person) => {
+  if (!isSplitCreator(split, userMobile) || !person) {
+    return false;
+  }
+
+  if (findPersonByPhone([person], userMobile)) {
+    return false;
+  }
+
+  return getPersonSettlement(person) === "pending";
+};
+
+export const haveAllOthersClosedShare = (split, userMobile) => {
+  const others = (split?.people ?? []).filter(
+    (person) => !findPersonByPhone([person], userMobile)
+  );
+
+  if (others.length === 0) {
+    return true;
+  }
+
+  return others.every((person) => person.status === "closed");
 };
 
 export const countPendingSettlements = (split, userMobile) => {

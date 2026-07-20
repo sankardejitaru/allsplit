@@ -40,7 +40,31 @@ export async function apiPost(path, body, options = {}) {
       headers: await buildHeaders(options.headers),
       body: JSON.stringify(body),
     });
-    return await res.json();
+
+    const raw = await res.text();
+    let data = {};
+
+    if (raw) {
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { message: raw.slice(0, 200) };
+      }
+    }
+
+    if (!res.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map((entry) => entry.msg).join("; ")
+        : data.detail;
+
+      return {
+        success: false,
+        message: detail || data.message || `HTTP ${res.status}`,
+        status: res.status,
+      };
+    }
+
+    return data;
   } catch (err) {
     logNetworkError("POST", url, err);
     return { message: err?.message ?? "Request failed", success: false };

@@ -47,3 +47,11 @@ export const markSettled = async (formData) => {
   }
   return data;
 };
+
+export const reopenShare = async (formData) => {
+  const data = await apiPost("/reopen-share", formData);
+  if (data.success === false && !data.message) {
+    return { message: "Failed to reopen share", success: false };
+  }
+  return data;
+};

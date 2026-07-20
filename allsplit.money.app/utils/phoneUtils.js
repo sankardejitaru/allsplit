@@ -171,3 +171,46 @@ export function normalizePerson(person) {
     phone: normalizeParticipantPhone(person.phone),
   };
 }
+
+export function matchesContactSearch(person, query) {
+  const normalizedQuery = String(query ?? "").trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const queryDigits = normalizedQuery.replace(/\D/g, "");
+  const name = (person?.name || "").toLowerCase();
+  const firstname = (person?.firstname || "").toLowerCase();
+  const lastname = (person?.lastname || "").toLowerCase();
+  const displayPhone = formatPhoneDisplay(person?.phone || "").toLowerCase();
+  const storedPhone = person?.phone || "";
+
+  return (
+    name.includes(normalizedQuery) ||
+    firstname.includes(normalizedQuery) ||
+    lastname.includes(normalizedQuery) ||
+    displayPhone.includes(normalizedQuery) ||
+    (queryDigits.length > 0 && storedPhone.includes(queryDigits))
+  );
+}
+
+export function getSavedContactPhones(savedContacts) {
+  const phones = new Set();
+
+  for (const contact of savedContacts || []) {
+    const normalized = normalizeDbContact(contact);
+    if (normalized?.phone) {
+      phones.add(normalized.phone);
+    }
+  }
+
+  return phones;
+}
+
+export function filterDeviceContactsExcludingSaved(deviceContacts, savedContacts) {
+  const savedPhones = getSavedContactPhones(savedContacts);
+
+  return (deviceContacts || []).filter(
+    (person) => person?.phone && !savedPhones.has(person.phone)
+  );
+}

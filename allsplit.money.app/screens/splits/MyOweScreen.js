@@ -17,13 +17,15 @@ import { createHomeStyles } from "../../styles";
 import { useThemedStyles } from "../../hooks/useThemedStyles";
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
 import { findPersonByPhone, getUserMobile, setUserMobile } from "../../utils/userIdentity";
-import { isUserBillClosed } from "../../utils/splitStats";
+import { isUserBillClosed, isSplitCreator, isUserShareReopened } from "../../utils/splitStats";
 import { useHardwareBack } from "../../hooks/useHardwareBack";
 import { goBackOrNavigate } from "../../utils/navigationHelpers";
+import { useAppTheme } from "../../context/ThemeContext";
 
 
 export default function MyOweScreen({ navigation, route }) {
   const styles = useThemedStyles(createHomeStyles);
+  const { colors } = useAppTheme();
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,17 +103,19 @@ export default function MyOweScreen({ navigation, route }) {
 
   const renderSplitItem = ({ item }) => {
     const isClosed = isUserBillClosed(item, userMobile);
+    const isCreator = isSplitCreator(item, userMobile);
+    const shareReopened = isUserShareReopened(item, userMobile);
 
     return (
     <TouchableOpacity 
-      style={styles.card}
+      style={[styles.card, shareReopened && styles.cardReopened]}
       onPress={() =>
         navigation.navigate("SettleBill", {
           bill: item,
           myPersonId: findPersonByPhone(item?.people ?? [], userMobile)?.id,
         })
       }
-      disabled={isClosed}
+      disabled={isClosed && !isCreator}
     >
       <View style={styles.cardHeader}>
         <View style={styles.iconContainer}>
@@ -119,7 +123,12 @@ export default function MyOweScreen({ navigation, route }) {
         </View>
         <View style={styles.titleContainer}>
           <Text style={styles.splitName}>{item.split_name}</Text>
-          
+          {shareReopened ? (
+            <View style={styles.reopenedBadge}>
+              <Ionicons name="refresh-circle" size={12} color={colors.primary} />
+              <Text style={styles.reopenedBadgeText}>Reopened</Text>
+            </View>
+          ) : null}
         </View>
         {isClosed ? (
           <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
