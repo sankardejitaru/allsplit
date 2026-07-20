@@ -23,6 +23,10 @@ export function createDashboardStyles(colors) {
     justifyContent: "space-between",
     marginBottom: 16,
   },
+  headerTextWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",

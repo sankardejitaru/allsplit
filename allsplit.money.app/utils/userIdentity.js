@@ -67,10 +67,10 @@ export const getUserLastname = async () => {
 };
 
 export const setUserProfile = async ({ firstname = "", lastname = "" } = {}) => {
-  await AsyncStorage.multiSet([
-    [USER_FIRSTNAME_KEY, String(firstname).trim()],
-    [USER_LASTNAME_KEY, String(lastname).trim()],
-  ]);
+  await AsyncStorage.setMany({
+    [USER_FIRSTNAME_KEY]: String(firstname).trim(),
+    [USER_LASTNAME_KEY]: String(lastname).trim(),
+  });
 };
 
 export const getUserDisplayName = (firstname, lastname) => {
@@ -95,7 +95,7 @@ export const getProfileInitials = (firstname, lastname, mobile) => {
 };
 
 export const clearUserSession = async () => {
-  await AsyncStorage.multiRemove([
+  await AsyncStorage.removeMany([
     "LoginId",
     USER_MOBILE_KEY,
     USER_FIRSTNAME_KEY,

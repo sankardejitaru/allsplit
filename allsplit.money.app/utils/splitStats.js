@@ -122,6 +122,49 @@ export const countPendingSettlements = (split, userMobile) => {
   }).length;
 };
 
+function roundMoney(amount) {
+  return Number((amount || 0).toFixed(2));
+}
+
+/**
+ * Creator collection summary for a bill (amounts from other participants only).
+ * netDue = pending + open (still to collect from others).
+ */
+export const getCreatorNetDueSummary = (split, userMobile) => {
+  const others = (split?.people ?? []).filter(
+    (person) => !findPersonByPhone([person], userMobile)
+  );
+
+  let pending = 0;
+  let received = 0;
+  let open = 0;
+
+  for (const person of others) {
+    const amount = getPersonOweForSplit(split, person.id);
+    const settlement = getPersonSettlement(person);
+
+    if (settlement === "open") {
+      open += amount;
+    } else if (settlement === "pending") {
+      pending += amount;
+    } else if (settlement === "settled") {
+      received += amount;
+    }
+  }
+
+  pending = roundMoney(pending);
+  received = roundMoney(received);
+  open = roundMoney(open);
+
+  return {
+    pending,
+    received,
+    open,
+    netDue: roundMoney(pending + open),
+    totalFromOthers: roundMoney(pending + received + open),
+  };
+};
+
 export const getBillSettlementStatus = (split, userMobile) => {
   if (split?.bill_settlement_status) {
     return split.bill_settlement_status;

@@ -16,11 +16,26 @@ import { createDashboardStyles } from "../../styles";
 import { useThemedStyles } from "../../hooks/useThemedStyles";
 import { useBrandStatusBar } from "../../hooks/useBrandStatusBar";
 import { useAppTheme } from "../../context/ThemeContext";
-import { findPersonByPhone, getUserMobile, setUserMobile } from "../../utils/userIdentity";
+import { findPersonByPhone, getUserMobile, setUserMobile, getUserFirstname, getUserLastname, getUserDisplayName, setUserProfile } from "../../utils/userIdentity";
+import { getProfile } from "../../services/profileService";
 import {
   getMyOweForSplit,
   summarizeSplits,
 } from "../../utils/splitStats";
+
+function getDashboardGreeting(firstname, lastname) {
+  const first = (firstname || "").trim();
+  if (first) {
+    return `Hi, ${first}`;
+  }
+
+  const displayName = getUserDisplayName(firstname, lastname);
+  if (displayName !== "AllSplit User") {
+    return `Hi, ${displayName}`;
+  }
+
+  return "Hi there";
+}
 
 export default function DashboardScreen({ navigation }) {
   const styles = useThemedStyles(createDashboardStyles);
@@ -29,27 +44,51 @@ export default function DashboardScreen({ navigation }) {
   useBrandStatusBar();
   const [splits, setSplits] = useState([]);
   const [userMobile, setUserMobileState] = useState("");
+  const [firstname, setFirstname] = useState("");
+  const [lastname, setLastname] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboard = async () => {
     try {
-      const [mobile, deviceId] = await Promise.all([
+      const [mobile, deviceId, cachedFirst, cachedLast] = await Promise.all([
         getUserMobile(),
         DeviceInfo.getUniqueId(),
+        getUserFirstname(),
+        getUserLastname(),
       ]);
 
+      setFirstname(cachedFirst);
+      setLastname(cachedLast);
       setUserMobileState(mobile);
 
       const response = await MyOweList({ device_id: deviceId });
-      const result = response.data ?? [];
+      const result = Array.isArray(response.data) ? response.data : [];
 
+      let activeMobile = mobile;
       if (response.user_mobile) {
-        await setUserMobile(response.user_mobile);
-        setUserMobileState(response.user_mobile);
+        activeMobile = response.user_mobile;
+        await setUserMobile(activeMobile);
+        setUserMobileState(activeMobile);
       }
 
       setSplits(result);
+
+      if (activeMobile) {
+        try {
+          const profile = await getProfile(activeMobile);
+          if (profile?.success) {
+            setFirstname(profile.firstname || "");
+            setLastname(profile.lastname || "");
+            await setUserProfile({
+              firstname: profile.firstname || "",
+              lastname: profile.lastname || "",
+            });
+          }
+        } catch (profileError) {
+          console.error("Dashboard profile load error:", profileError);
+        }
+      }
     } catch (error) {
       console.error("Dashboard load error:", error);
     } finally {
@@ -70,7 +109,8 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const stats = summarizeSplits(splits, userMobile);
-  const recentSplits = splits.slice(0, 5);
+  const recentSplits = splits.slice(0, 3);
+  const greeting = getDashboardGreeting(firstname, lastname);
 
   const quickActions = [
     {
@@ -107,8 +147,8 @@ export default function DashboardScreen({ navigation }) {
       >
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>Dashboard</Text>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.headerTitle}>{greeting}</Text>
               <Text style={styles.headerSubtitle}>Split bills. Settle easy.</Text>
             </View>
             <TouchableOpacity

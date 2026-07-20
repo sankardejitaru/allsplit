@@ -186,10 +186,26 @@ export function createSettingsStyles(colors) {
   themeOptionTextActive: {
     color: colors.primaryDark,
   },
+  switchAccountButton: {
+    backgroundColor: colors.white,
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  switchAccountText: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: "700",
+  },
   logoutButton: {
     backgroundColor: colors.white,
     marginHorizontal: 20,
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 8,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -207,6 +223,42 @@ export function createSettingsStyles(colors) {
     fontSize: 12,
     marginTop: 24,
     marginBottom: 32,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 18,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  modalMessage: {
+    color: colors.textMuted,
+    marginBottom: 18,
+    lineHeight: 20,
+    fontSize: 14,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 16,
+  },
+  modalCancelText: {
+    color: colors.textMuted,
+    fontWeight: "600",
+  },
+  modalConfirmText: {
+    color: colors.primary,
+    fontWeight: "700",
   },
 });
 }

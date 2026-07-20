@@ -18,8 +18,29 @@ import { useAppTheme } from "../../context/ThemeContext";
 import {
   countPendingSettlements,
   getBillSettlementStatus,
+  getCreatorNetDueSummary,
 } from "../../utils/splitStats";
 import { goBackOrNavigate } from "../../utils/navigationHelpers";
+
+function formatRupee(amount) {
+  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+}
+
+function formatNetDueBreakdown(netDue) {
+  const parts = [];
+
+  if (netDue.pending > 0) {
+    parts.push(`${formatRupee(netDue.pending)} pending`);
+  }
+  if (netDue.received > 0) {
+    parts.push(`${formatRupee(netDue.received)} received`);
+  }
+  if (netDue.open > 0) {
+    parts.push(`${formatRupee(netDue.open)} open`);
+  }
+
+  return parts.join(" · ");
+}
 
 function statusLabel(status) {
   switch (status) {
@@ -96,6 +117,8 @@ export default function CreatedSplitsScreen({ navigation }) {
     const billStatus = getBillSettlementStatus(item, userMobile);
     const badgeStyles = statusStyle(billStatus, styles);
     const pendingCount = countPendingSettlements(item, userMobile);
+    const netDue = getCreatorNetDueSummary(item, userMobile);
+    const netDueBreakdown = formatNetDueBreakdown(netDue);
 
     return (
       <TouchableOpacity
@@ -126,6 +149,16 @@ export default function CreatedSplitsScreen({ navigation }) {
           <Text style={styles.metaText}>
             {new Date(item?.meta?.created_at).toLocaleDateString()}
           </Text>
+        </View>
+
+        <View style={styles.netDueRow}>
+          <View style={styles.netDueMain}>
+            <Text style={styles.netDueLabel}>Net due</Text>
+            <Text style={styles.netDueAmount}>{formatRupee(netDue.netDue)}</Text>
+          </View>
+          {netDueBreakdown ? (
+            <Text style={styles.netDueBreakdown}>{netDueBreakdown}</Text>
+          ) : null}
         </View>
 
         {pendingCount > 0 ? (

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_actor_mobile, require_auth
 from app.core.database import split_collection, users_collection
+from app.services.device_service import find_user_by_device
 from app.schemas.split import (
     CloseBillRequest,
     CreatedSplitsListRequest,
@@ -86,7 +87,7 @@ def get_my_owe_list(
     data: MyOweListRequest,
     _: Optional[str] = Depends(require_auth),
 ):
-    user = users_collection.find_one({"device_Id": data.device_id})
+    user = find_user_by_device(data.device_id)
     mobile_no = user.get("mobile") if user else None
 
     if not mobile_no:
@@ -118,7 +119,7 @@ def get_my_owe_list(
 
 
 def _resolve_mobile_from_device(device_id: str, actor_mobile: Optional[str]) -> Optional[str]:
-    user = users_collection.find_one({"device_Id": device_id})
+    user = find_user_by_device(device_id)
     mobile_no = user.get("mobile") if user else None
     return mobile_no or actor_mobile
 

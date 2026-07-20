@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiPost } from "./apiClient";
+import { clearUserSession } from "../utils/userIdentity";
+import { clearStoredPin } from "../utils/biometricAuth";
 
 const ACCESS_TOKEN_KEY = "AccessToken";
 
@@ -10,6 +12,27 @@ export const storeAccessToken = async (token) => {
 };
 
 export const getAccessToken = async () => AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+
+export const clearAccessToken = async () => {
+  await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+};
+
+export const logout = async () => {
+  await Promise.all([clearAccessToken(), clearUserSession(), clearStoredPin()]);
+};
+
+export const unlinkDevice = async (deviceId) => {
+  const data = await apiPost("/auth/unlink-device", { device_id: deviceId });
+  if (data.success === false && !data.message) {
+    return { message: "Failed to unlink device", success: false };
+  }
+  return data;
+};
+
+export const switchAccount = async (deviceId) => {
+  await unlinkDevice(deviceId);
+  await logout();
+};
 
 export const sendOtp = async (mobile, channel = "sms") => {
   try {

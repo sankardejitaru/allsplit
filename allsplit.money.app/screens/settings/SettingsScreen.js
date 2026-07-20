@@ -7,6 +7,7 @@ import {
   Switch,
   TextInput,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,6 +28,8 @@ import {
 import { showToast } from "../../utils/toastService";
 import { FEATURE_FLAGS } from "../../constants/config";
 import { getProfile, updateProfile } from "../../services/profileService";
+import { logout, switchAccount } from "../../services/authService";
+import DeviceInfo from "react-native-device-info";
 
 const NOTIFICATIONS_KEY = "SettingsNotifications";
 
@@ -40,6 +43,8 @@ export default function SettingsScreen({ navigation }) {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
 
   const loadSettings = async () => {
     const [mobile, notifications, cachedFirst, cachedLast] = await Promise.all([
@@ -128,6 +133,33 @@ export default function SettingsScreen({ navigation }) {
 
   const openProfileEditor = () => {
     setIsEditingProfile(true);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "PinLogin" }],
+    });
+  };
+
+  const handleSwitchAccount = () => {
+    setShowSwitchModal(true);
+  };
+
+  const confirmSwitchAccount = async () => {
+    try {
+      setSwitchingAccount(true);
+      const deviceId = await DeviceInfo.getUniqueId();
+      await switchAccount(deviceId);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+    } finally {
+      setSwitchingAccount(false);
+      setShowSwitchModal(false);
+    }
   };
 
   const displayName = getUserDisplayName(firstname, lastname);
@@ -334,8 +366,48 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        <TouchableOpacity style={styles.switchAccountButton} onPress={handleSwitchAccount}>
+          <Text style={styles.switchAccountText}>Switch account</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+
         <Text style={styles.versionText}>allsplit.money</Text>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={showSwitchModal}
+        animationType="fade"
+        onRequestClose={() => !switchingAccount && setShowSwitchModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Switch account</Text>
+            <Text style={styles.modalMessage}>
+              Sign in with a different mobile number? Your current session will be cleared on this device.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setShowSwitchModal(false)}
+                disabled={switchingAccount}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmSwitchAccount}
+                disabled={switchingAccount}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {switchingAccount ? "Switching..." : "Switch"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

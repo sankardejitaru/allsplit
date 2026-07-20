@@ -29,6 +29,7 @@ import { useHardwareBack } from "../../hooks/useHardwareBack";
 import { goBackOrNavigate, resetToScreen } from "../../utils/navigationHelpers";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useAppTheme } from "../../context/ThemeContext";
+import { getContactInitials } from "../../utils/phoneUtils";
 
 function isConsumptionItem(item) {
   return !item?.split_type || item.split_type === "consumption";
@@ -495,19 +496,31 @@ export default function SettleBillScreen({ route, navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.headerBackBtn} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={22} color={colors.textDark} />
+          <Ionicons name="arrow-back" size={22} color={colors.primaryDark} />
         </TouchableOpacity>
-        <Text style={styles.title}>Settle Bill</Text>
-        <View style={styles.headerSpacer} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>Settle Bill</Text>
+          {billData?.split_name ? (
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {billData.split_name}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.headerTotal}>
+          <Text style={styles.headerTotalLabel}>Total bill</Text>
+          <Text style={styles.headerTotalValue}>₹{grandTotal.toFixed(2)}</Text>
+        </View>
       </View>
 
       {isBillCreator ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.participantsStrip}
-          style={styles.participantsStripWrap}
-        >
+        <View style={styles.participantsSection}>
+          <Text style={styles.participantsLabel}>Participants</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.participantsStrip}
+            style={styles.participantsStripWrap}
+          >
           {(billData.people ?? [])
             .filter((person) => person.id !== myPersonId)
             .map((person) => {
@@ -592,20 +605,28 @@ export default function SettleBillScreen({ route, navigation }) {
                 </View>
               );
             })}
-        </ScrollView>
+          </ScrollView>
+        </View>
       ) : null}
 
       {myShareReopened ? (
-        <View style={styles.reopenedBanner}>
-          <Ionicons name="refresh-circle" size={16} color={colors.primary} />
-          <Text style={styles.reopenedBannerText}>
+        <View style={[styles.statusBanner, styles.statusBannerReopened]}>
+          <View style={styles.statusBannerIcon}>
+            <Ionicons name="refresh-circle" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.statusBannerText}>
             Your share was reopened. Review quantities and close again when ready.
           </Text>
         </View>
       ) : null}
 
       {isClosed ? (
-        <Text style={styles.closedBanner}>Your share on this bill is closed.</Text>
+        <View style={[styles.statusBanner, styles.statusBannerClosed]}>
+          <View style={styles.statusBannerIcon}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.statusBannerText}>Your share on this bill is closed.</Text>
+        </View>
       ) : null}
 
       {!myPersonId ? (
@@ -616,13 +637,54 @@ export default function SettleBillScreen({ route, navigation }) {
 
       <FlatList
         style={styles.container}
+        contentContainerStyle={styles.listContent}
         data={items}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          const itemTotal = item.price * item.qty;
+          const assignedQty = (item.consumption?.consumers ?? []).reduce(
+            (sum, consumer) => sum + Number(consumer.qty ?? 0),
+            0
+          );
+          const assignProgress =
+            item.qty > 0 ? Math.min(assignedQty / item.qty, 1) : 0;
+
+          return (
           <View style={styles.card}>
-            <Text style={styles.itemName}>
-              {item.name} (₹{item.price * item.qty})
-            </Text>
+            <View style={styles.itemHeader}>
+              <View style={styles.itemHeaderLeft}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemMeta}>
+                  ₹{item.price} each · ₹{itemTotal.toFixed(2)} total
+                  {isConsumptionItem(item)
+                    ? ` · ${assignedQty}/${item.qty} assigned`
+                    : ""}
+                </Text>
+              </View>
+              <View style={styles.qtyBadge}>
+                <Text style={styles.qtyBadgeValue}>{item.qty}</Text>
+                <Text style={styles.qtyBadgeLabel}>Qty</Text>
+              </View>
+            </View>
+
+            {isConsumptionItem(item) ? (
+              <View style={styles.progressTrack}>
+                <View
+                  style={[styles.progressFill, { width: `${assignProgress * 100}%` }]}
+                />
+              </View>
+            ) : null}
+
+            <View style={styles.rowHeader}>
+              <Text style={[styles.rowHeaderText, styles.nameCol]}>Person</Text>
+              <View style={styles.qtyCol}>
+                <Text style={[styles.rowHeaderText, styles.rowHeaderQty]}>Qty</Text>
+              </View>
+              <View style={styles.amountCol}>
+                <Text style={[styles.rowHeaderText, styles.rowHeaderAmount]}>Amount</Text>
+              </View>
+            </View>
 
             {item.consumption.consumers.map((consumer) => {
               const person = billData.people.find(
@@ -630,55 +692,80 @@ export default function SettleBillScreen({ route, navigation }) {
               );
               const isYou = consumer.person_id === myPersonId;
               const editable = canEditConsumer(consumer.person_id, item);
+              const displayName = isYou ? "You" : person?.name ?? "Guest";
+              const initials = getContactInitials(
+                isYou ? { name: "You" } : { name: person?.name ?? "Guest" }
+              );
 
               return (
                 <View
                   key={consumer.person_id}
                   style={[styles.rowBase, isYou ? styles.myRow : styles.mylockRow]}
                 >
-                  <Text
-                    style={[
-                      styles.nameCol,
-                      isYou ? styles.youLabel : styles.otherName,
-                    ]}
-                  >
-                    {isYou ? "You" : person?.name ?? "Guest"}
-                  </Text>
-
-                  {editable ? (
-                    <TextInput
-                      style={styles.qtyInput}
-                      keyboardType="numeric"
-                      value={String(consumer.qty ?? 0)}
-                      onChangeText={(value) =>
-                        updateQty(item.id, consumer.person_id, value)
-                      }
-                    />
-                  ) : (
-                    <Text style={[styles.qtyCol, styles.lockedQty]}>
-                      {consumer.qty ?? 0}
+                  <View style={[styles.personCell, styles.nameCol]}>
+                    <View style={[styles.avatar, isYou && styles.avatarYou]}>
+                      <Text
+                        style={[styles.avatarText, isYou && styles.avatarTextYou]}
+                      >
+                        {initials}
+                      </Text>
+                    </View>
+                    <Text style={isYou ? styles.youLabel : styles.otherName}>
+                      {displayName}
                     </Text>
-                  )}
+                  </View>
 
-                  <Text style={[styles.amountCol, styles.amount]}>
-                    ₹ {(consumer.amount ?? 0).toFixed(2)}
-                  </Text>
+                  <View style={styles.qtyCol}>
+                    {editable ? (
+                      <TextInput
+                        style={styles.qtyInput}
+                        keyboardType="numeric"
+                        value={String(consumer.qty ?? 0)}
+                        onChangeText={(value) =>
+                          updateQty(item.id, consumer.person_id, value)
+                        }
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.qtyPill,
+                          isYou ? styles.qtyPillYou : styles.qtyPillOther,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.qtyPillText,
+                            isYou && styles.qtyPillTextYou,
+                          ]}
+                        >
+                          {consumer.qty ?? 0}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.amountCol}>
+                    <Text
+                      style={[
+                        styles.amount,
+                        isYou && styles.amountYou,
+                      ]}
+                    >
+                      ₹{(consumer.amount ?? 0).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
           </View>
-        )}
+          );
+        }}
       />
 
       <View style={styles.footer}>
-        <View style={styles.totalRow}>
-          <Text style={styles.bold}>You Pay</Text>
-          <Text style={styles.bold}>₹ {settlement.myTotal.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.totalRow}>
-          <Text>Total Bill</Text>
-          <Text>₹ {grandTotal.toFixed(2)}</Text>
+        <View style={styles.youPayRow}>
+          <Text style={styles.youPayLabel}>You pay</Text>
+          <Text style={styles.youPayAmount}>₹{settlement.myTotal.toFixed(2)}</Text>
         </View>
 
         {((!isClosed && myPersonId) || isBillCreator) ? (
@@ -692,7 +779,7 @@ export default function SettleBillScreen({ route, navigation }) {
               disabled={savingBill || closingBill}
             >
               <Text style={styles.saveButtonText}>
-                {savingBill ? "Saving..." : "Save bill"}
+                {savingBill ? "Saving..." : "Save"}
               </Text>
             </TouchableOpacity>
 
@@ -706,7 +793,7 @@ export default function SettleBillScreen({ route, navigation }) {
                 disabled={closingBill || savingBill}
               >
                 <Text style={styles.closeButtonText}>
-                  {closingBill ? "Closing..." : "Close my share"}
+                  {closingBill ? "Closing..." : "Close"}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -747,7 +834,7 @@ export default function SettleBillScreen({ route, navigation }) {
                 disabled={closingBill}
               >
                 <Text style={styles.confirmPrimaryText}>
-                  {closingBill ? "Closing..." : "Close my share"}
+                  {closingBill ? "Closing..." : "Close"}
                 </Text>
               </TouchableOpacity>
             </View>

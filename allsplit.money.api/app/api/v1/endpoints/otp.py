@@ -8,6 +8,7 @@ from app.core.database import otp_collection, users_collection
 from app.core.security import create_access_token
 from app.schemas.otp import SendOtpRequest, VerifyOtpRequest
 from app.services.contact_service import ensure_saved_contact
+from app.services.device_service import unlink_device
 from app.services.notification_service import deliver_otp
 from app.utils.audit_helpers import audit_event
 from app.utils.otp import otp_expiry, resolve_otp
@@ -97,6 +98,8 @@ def verify_otp(data: VerifyOtpRequest):
 
     user = users_collection.find_one({"mobile": data.mobile})
     is_new_user = user is None
+
+    unlink_device(data.device_Id)
 
     if not user:
         users_collection.insert_one({
