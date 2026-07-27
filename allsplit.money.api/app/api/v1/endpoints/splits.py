@@ -15,6 +15,7 @@ from app.schemas.split import (
     ReopenShareRequest,
     SaveSplitRequest,
     UpdatePriceRequest,
+    UpdateSplitNameRequest,
 )
 from app.services.notification_service import notify_split_participants
 from app.services.split_settlement_service import (
@@ -216,6 +217,76 @@ def update_price(
     return {
         "success": True,
         "message": "Price updated successfully",
+        "updated_doc": updated_doc,
+    }
+
+
+@router.post("/update-split-name")
+def update_split_name(
+    update: UpdateSplitNameRequest,
+    actor_mobile: Optional[str] = Depends(get_actor_mobile),
+):
+    split_name = (update.split_name or "").strip()
+    if not split_name:
+        raise HTTPException(status_code=400, detail="Bill name is required")
+
+    try:
+        query = {"_id": ObjectId(update.id)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    document = split_collection.find_one(query)
+    if not document:
+        audit_event(
+            action="split.update_split_name",
+            category="split",
+            status="failure",
+            message="Document not found",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+        )
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not is_split_creator(document, actor_mobile):
+        audit_event(
+            action="split.update_split_name",
+            category="split",
+            status="failure",
+            message="Only the bill creator can rename the bill",
+            actor_mobile=actor_mobile,
+            resource_type="split",
+            resource_id=update.id,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Only the bill creator can rename the bill",
+        )
+
+    split_collection.update_one(
+        query,
+        {"$set": {
+            "split_name": split_name,
+            "updated_at": datetime.utcnow(),
+        }},
+    )
+
+    updated_doc = serialize_doc(split_collection.find_one(query))
+
+    audit_event(
+        action="split.update_split_name",
+        category="split",
+        status="success",
+        message="Bill name updated",
+        actor_mobile=actor_mobile,
+        resource_type="split",
+        resource_id=update.id,
+        details={"split_name": split_name},
+    )
+    return {
+        "success": True,
+        "message": "Bill name updated",
+        "split_name": split_name,
         "updated_doc": updated_doc,
     }
 

@@ -33,11 +33,7 @@ export async function notifySplitParticipants({
     !FEATURE_FLAGS.enablePush;
 
   if (channelsDisabled && serverSkipped) {
-    console.log("[AllSplit] Notifications disabled — invite preview:", {
-      splitName,
-      recipients: recipients.map((person) => person.phone),
-      message,
-    });
+    
     showToast(
       "info",
       "Split saved",

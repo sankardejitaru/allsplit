@@ -1,4 +1,4 @@
-import React, { useEffect,useState,useCallback  } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ export default function BillDetailsScreen({ navigation,route }) {
   const [people, setPeople] = useState([]);
   const [items, setItems] = useState([]);
   const [split_name,setSplit_name]= useState('');
+
   const handleLeaveDetails = useCallback(() => {
     goBackOrNavigate(navigation, { screen: "MyOwe" });
   }, [navigation]);
@@ -36,8 +37,8 @@ export default function BillDetailsScreen({ navigation,route }) {
       return true;
     }, [handleLeaveDetails])
   );
+
   useEffect(() => {
-    
     if (route.params?.selectedPeople) {
       setPeople(
         route.params.selectedPeople.map((person) => ({
@@ -46,36 +47,30 @@ export default function BillDetailsScreen({ navigation,route }) {
         }))
       );
     }
-    if (route.params?.Items) {
+    if (route.params?.Items?.length) {
       setItems(route.params.Items);
     }
     if (route.params?.split_name) {
       setSplit_name(route.params.split_name);
-    }else{
+    } else {
       generateRandomNumber();
     }
   }, [route.params?.selectedPeople]);
 
   const generateRandomNumber = () => {
-  // Get today's date
   const today = new Date();
 
-  // Format ddmmyy
   const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-based
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
   const yy = String(today.getFullYear()).slice(-4);
 
   const datePart = dd + mm + yy;
-
-  // Generate random 4-digit number
   const randomPart = Math.floor(1000 + Math.random() * 9000);
-
-  // Combine
   const finalNumber = datePart + ' - ' + randomPart;
 
-  // Set into state
   setSplit_name(finalNumber);
 };
+
   const addNewItem = () => {
   const newItem = {
     id: Date.now().toString(),
@@ -87,7 +82,8 @@ export default function BillDetailsScreen({ navigation,route }) {
 
   setItems(prev => [...prev, newItem]);
 };
-    const updateItemText = (id, field, value) => {
+
+  const updateItemText = (id, field, value) => {
     setItems(prev =>
       prev.map(item =>
         item.id === id
@@ -96,10 +92,11 @@ export default function BillDetailsScreen({ navigation,route }) {
       )
     );
   };
+
   const fnSplit_name = (val) => {
     setSplit_name(val);
-     
   };
+
   const updateItem = (id, field, value) => {
     setItems(prev =>
       prev.map(item =>
@@ -116,11 +113,10 @@ export default function BillDetailsScreen({ navigation,route }) {
   );
 
    const buildBillPayload = (creatorMobile = "") => {
-    
   const totalPeople = people.length;
 
   return {
-    split_name:split_name,
+    split_name: String(split_name || "").trim(),
     bill_summary: {
       total_amount: totalAmount,
       total_items: items.length,
@@ -140,7 +136,6 @@ export default function BillDetailsScreen({ navigation,route }) {
             : undefined,
         },
     items: items.map(item => {
-      // 🔹 Equal split → auto quantity allocation
       if (item.split === "equal") {
         const perPersonQty = Number(
           (item.qty / totalPeople).toFixed(2)
@@ -166,7 +161,6 @@ export default function BillDetailsScreen({ navigation,route }) {
         };
       }
 
-      // 🔹 By consumption → quantities added later
       return {
         id: item.id,
         name: item.name,
@@ -182,7 +176,7 @@ export default function BillDetailsScreen({ navigation,route }) {
               qty: 0,
               unit_price: item.price,
               amount: 0,
-            })),      
+            })),
         },
       };
     }),
@@ -192,14 +186,14 @@ export default function BillDetailsScreen({ navigation,route }) {
 };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}> 
+    <View style={styles.card}>
       <TextInput
             style={styles.standardinput}
             keyboardType="default"
             value={String(item.name)}
             onChangeText={val => updateItemText(item.id, "name", val)}
           />
-           
+
           <TouchableOpacity
             style={{ position: "absolute", top: 8, right: 8 }}
             onPress={() => {
@@ -238,7 +232,6 @@ export default function BillDetailsScreen({ navigation,route }) {
         </View>
       </View>
 
-      {/* Split Type */}
       <View style={styles.splitRow}>
         <SplitButton
           styles={styles}
@@ -255,7 +248,13 @@ export default function BillDetailsScreen({ navigation,route }) {
       </View>
     </View>
   );
+
   const handleFinalSubmit = async () => {
+    if (!String(split_name || "").trim()) {
+      showToast("danger", "Bill name required", "Enter a name for this bill");
+      return;
+    }
+
     if (!people.length) {
       showToast("danger", "Add people", "Select at least one person for this split");
       return;
@@ -285,40 +284,49 @@ export default function BillDetailsScreen({ navigation,route }) {
       showToast("danger", "Could not save", response.message || "Try again");
     }
   };
+
   return (
     <View style={styles.container}>
       <View style={[styles.statusBarFill, { height: insets.top }]} />
-      {/* Header */}
-      <View style={styles.header}>         
-          <View style={{ flexDirection: "row", alignItems: "center", width: "100%" }}>
-            <Text style={styles.amount}>₹ {totalAmount.toFixed(2)}</Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center", width: "100%" }}>
+          <Text style={styles.amount}>₹ {totalAmount.toFixed(2)}</Text>
 
-            <TouchableOpacity
-              style={[styles.addItemBtn, { marginLeft: "auto" }]} // ✅ pushes to right
-              onPress={addNewItem}
-            >
-              <MaterialCommunityIcons name="plus" size={30} color="white" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.addItemBtn, { marginLeft: "auto" }]}
+            onPress={addNewItem}
+          >
+            <MaterialCommunityIcons name="plus" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
 
+        <View style={{ marginTop: 14 }}>
+          <Text style={styles.billNameLabel}>Bill name</Text>
+          <TextInput
+            style={styles.splitinput}
+            value={split_name}
+            onChangeText={fnSplit_name}
+          />
+        </View>
       </View>
+
       <View style={styles.addPeopleContainer}>
         <Text style={styles.sectionLabel}>Add people</Text>
 
          <View style={{ flexDirection: "row", alignItems: "center" }}>
-  {/* Static + button */}
   <TouchableOpacity
     style={styles.addBtn}
     onPress={() =>
       navigation.navigate("People", {
-        selectedPeople: people, Items: items,split_name : split_name
+        selectedPeople: people,
+        Items: items,
+        split_name: split_name,
       })
     }
   >
     <Text style={styles.plus}>+</Text>
   </TouchableOpacity>
 
-  {/* Scrollable avatars */}
   <FlatList
     data={people}
     horizontal
@@ -335,7 +343,7 @@ export default function BillDetailsScreen({ navigation,route }) {
 </View>
 
       </View>
-      {/* Items */}
+
       <FlatList
         data={items}
         keyExtractor={item => item.id}

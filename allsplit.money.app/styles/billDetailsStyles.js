@@ -67,6 +67,12 @@ export function createBillDetailsStyles(colors) {
     fontWeight: "700",
     marginTop: 8,
   },
+  billNameLabel: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
   card: {
     backgroundColor: colors.white,
     margin: 16,

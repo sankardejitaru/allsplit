@@ -2,8 +2,8 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 
 /** API host or full base URL (no trailing slash). */
-const LOCAL_DEV_IP = "http://192.168.1.10:8000";
-const API_PORT = 8000;
+const LOCAL_DEV_IP = "https://mobileapi.allsplit.money";
+const API_PORT = 443;
 
 function isFullUrl(value) {
   return /^https?:\/\//i.test(value);

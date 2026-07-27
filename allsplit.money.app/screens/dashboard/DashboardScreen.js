@@ -109,7 +109,13 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const stats = summarizeSplits(splits, userMobile);
-  const recentSplits = splits.slice(0, 3);
+  const recentSplits = [...splits]
+    .sort((a, b) => {
+      const aTime = new Date(a?.meta?.created_at || a?.created_at || 0).getTime();
+      const bTime = new Date(b?.meta?.created_at || b?.created_at || 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, 3);
   const greeting = getDashboardGreeting(firstname, lastname);
 
   const quickActions = [

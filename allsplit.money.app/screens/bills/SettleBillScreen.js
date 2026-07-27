@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { showToast } from "../../utils/toastService";
-import { MyOwePrizeUpdate, closebill, reopenShare, markSettled } from "../../services/splitService";
+import { MyOwePrizeUpdate, closebill, reopenShare, markSettled, updateSplitName } from "../../services/splitService";
 import { findPersonByPhone, getUserMobile } from "../../utils/userIdentity";
 import {
   isUserBillClosed,
@@ -68,6 +68,9 @@ export default function SettleBillScreen({ route, navigation }) {
   const [reopeningShare, setReopeningShare] = useState(false);
   const [receivePerson, setReceivePerson] = useState(null);
   const [markingReceived, setMarkingReceived] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [draftSplitName, setDraftSplitName] = useState("");
+  const [savingSplitName, setSavingSplitName] = useState(false);
 
   const myPerson = useMemo(
     () => findPersonByPhone(billData?.people ?? [], userMobile),
@@ -115,6 +118,12 @@ export default function SettleBillScreen({ route, navigation }) {
 
   useHardwareBack(
     useCallback(() => {
+      if (showRenameModal) {
+        if (!savingSplitName) {
+          setShowRenameModal(false);
+        }
+        return true;
+      }
       if (showCloseConfirm) {
         if (!closingBill) {
           setShowCloseConfirm(false);
@@ -138,7 +147,18 @@ export default function SettleBillScreen({ route, navigation }) {
       }
       handleBack();
       return true;
-    }, [showCloseConfirm, closingBill, savingBill, reopenPerson, reopeningShare, receivePerson, markingReceived, handleBack])
+    }, [
+      showRenameModal,
+      savingSplitName,
+      showCloseConfirm,
+      closingBill,
+      savingBill,
+      reopenPerson,
+      reopeningShare,
+      receivePerson,
+      markingReceived,
+      handleBack,
+    ])
   );
 
   useEffect(() => {
@@ -204,6 +224,55 @@ export default function SettleBillScreen({ route, navigation }) {
     }
 
     setShowCloseConfirm(true);
+  };
+
+  const openRenameModal = () => {
+    if (!isBillCreator) {
+      return;
+    }
+    setDraftSplitName(billData?.split_name || "");
+    setShowRenameModal(true);
+  };
+
+  const confirmRenameSplit = async () => {
+    const nextName = String(draftSplitName || "").trim();
+    if (!nextName) {
+      showToast("danger", "Bill name required", "Enter a name for this bill");
+      return;
+    }
+
+    if (nextName === String(billData?.split_name || "").trim()) {
+      setShowRenameModal(false);
+      return;
+    }
+
+    try {
+      setSavingSplitName(true);
+      const response = await updateSplitName({
+        id: billData._id,
+        split_name: nextName,
+      });
+
+      if (!response.success) {
+        showToast(
+          "danger",
+          "Could not rename",
+          response.message || response.detail || "Try again"
+        );
+        return;
+      }
+
+      setBillData((prev) => ({
+        ...prev,
+        split_name: response.split_name || nextName,
+      }));
+      setShowRenameModal(false);
+      showToast("info", "Bill renamed", "Bill name has been updated");
+    } catch (error) {
+      showToast("danger", "Could not rename", "Try again");
+    } finally {
+      setSavingSplitName(false);
+    }
   };
 
   const confirmCloseBill = async () => {
@@ -500,11 +569,26 @@ export default function SettleBillScreen({ route, navigation }) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Settle Bill</Text>
-          {billData?.split_name ? (
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {billData.split_name}
-            </Text>
-          ) : null}
+          <View style={styles.headerNameRow}>
+            {billData?.split_name ? (
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {billData.split_name}
+              </Text>
+            ) : (
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                Untitled bill
+              </Text>
+            )}
+            {isBillCreator ? (
+              <TouchableOpacity
+                style={styles.editNameBtn}
+                onPress={openRenameModal}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
         <View style={styles.headerTotal}>
           <Text style={styles.headerTotalLabel}>Total bill</Text>
@@ -800,6 +884,52 @@ export default function SettleBillScreen({ route, navigation }) {
           </View>
         ) : null}
       </View>
+
+      <Modal
+        transparent
+        visible={showRenameModal}
+        animationType="fade"
+        onRequestClose={() => !savingSplitName && setShowRenameModal(false)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>Edit bill name</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={draftSplitName}
+              onChangeText={setDraftSplitName}
+              placeholder="Bill name"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+              maxLength={120}
+              editable={!savingSplitName}
+            />
+
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmCancelButton}
+                onPress={() => setShowRenameModal(false)}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.confirmPrimaryButton,
+                  savingSplitName && styles.closeButtonDisabled,
+                ]}
+                onPress={confirmRenameSplit}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.confirmPrimaryText}>
+                  {savingSplitName ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         transparent

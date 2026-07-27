@@ -23,6 +23,11 @@ class ReopenShareRequest(BaseModel):
     person_id: str
 
 
+class UpdateSplitNameRequest(BaseModel):
+    id: str
+    split_name: str = Field(..., min_length=1, max_length=120)
+
+
 class CreatedSplitsListRequest(BaseModel):
     device_id: str
 

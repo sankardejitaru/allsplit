@@ -55,6 +55,7 @@ export default function MyOweScreen({ navigation, route }) {
   const buildPayload = (type) => {
       const payload = {
         type: type, // "scan", "upload", or "manual"
+        split_name: "",
         contacts: [], // This will be filled in the next step],
         items : [], // This will be filled in the next step
   
@@ -229,7 +230,7 @@ export default function MyOweScreen({ navigation, route }) {
               onPress={() => { setShowOptions(false); buildPayload('scan'); }}
             >
               <Ionicons name="scan" size={22} color="#1A9B4B" />
-              <Text style={styles.optionText}>Scan</Text>
+              <Text style={styles.optionText}>Scan Bill</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -237,7 +238,7 @@ export default function MyOweScreen({ navigation, route }) {
               onPress={() => { setShowOptions(false); buildPayload('upload'); }}
             >
               <Ionicons name="cloud-upload" size={22} color="#1A9B4B" />
-              <Text style={styles.optionText}>Upload</Text>
+              <Text style={styles.optionText}>Upload Bill</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -245,7 +246,7 @@ export default function MyOweScreen({ navigation, route }) {
               onPress={() => { setShowOptions(false); buildPayload('manual'); }}
             >
               <Ionicons name="create" size={22} color="#1A9B4B" />
-              <Text style={styles.optionText}>Manual</Text>
+              <Text style={styles.optionText}>Add Manually</Text>
             </TouchableOpacity>
           </View>
         </View>
