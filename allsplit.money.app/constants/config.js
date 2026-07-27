@@ -39,7 +39,8 @@ export const FEATURE_FLAGS = {
   enableSms: process.env.EXPO_PUBLIC_ENABLE_SMS === "true",
   enableWhatsapp: process.env.EXPO_PUBLIC_ENABLE_WHATSAPP === "true",
   enablePush: process.env.EXPO_PUBLIC_ENABLE_PUSH === "true",
-  otpTestMode: process.env.EXPO_PUBLIC_OTP_TEST_MODE !== "false",
+  // Opt-in only — release builds stay off unless explicitly enabled.
+  otpTestMode: process.env.EXPO_PUBLIC_OTP_TEST_MODE === "true",
 };
 
 if (__DEV__) {

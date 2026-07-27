@@ -18,8 +18,13 @@
       }
     },
     "android": {
-      "permissions": ["READ_CONTACTS", "CAMERA"],
-      "usesCleartextTraffic": true,
+      "permissions": ["READ_CONTACTS", "CAMERA", "INTERNET"],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "usesCleartextTraffic": false,
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

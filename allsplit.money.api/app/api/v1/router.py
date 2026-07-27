@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admin, audit, auth, contacts, health, ocr, otp, profile, splits, textract
+from app.api.v1.endpoints import admin, audit, auth, contacts, health, ocr, otp, profile, site, splits, textract
 
 api_router = APIRouter()
+api_router.include_router(site.router)
 api_router.include_router(health.router)
 api_router.include_router(admin.router)
 api_router.include_router(otp.router)

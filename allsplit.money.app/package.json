@@ -6,7 +6,15 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "prebuild": "expo prebuild",
+    "prebuild:clean": "expo prebuild --clean",
+    "build": "npm run build:android:apk",
+    "build:android": "npm run build:android:apk",
+    "build:android:debug": "node scripts/build-android.js debug",
+    "build:android:apk": "node scripts/build-android.js apk",
+    "build:android:aab": "node scripts/build-android.js aab",
+    "build:web": "expo export --platform web --output-dir build/web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
