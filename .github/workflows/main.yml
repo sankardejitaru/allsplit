@@ -17,6 +17,9 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          
+      - name: Ensure Gradlew is executable
+        run: chmod +x allsplit.money.app/android/gradlew
 
       - name: Decode Keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > allsplit.money.app/android/app/keystore.jks
