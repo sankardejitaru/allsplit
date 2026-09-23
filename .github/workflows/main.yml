@@ -3,21 +3,15 @@ name: Android Build
 on:
   push:
     branches:
-      - cleanup-architecture
+      - ios_build
   workflow_dispatch:   # allows manual trigger from Actions tab
 
 jobs:
-  build-android:
-    runs-on: ubuntu-24.04
+  build-ios:
+    runs-on: macos-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -25,25 +19,22 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
-        working-directory: allsplit.money.app
+        run: |
+          npm ci
+          cd ios
+          pod install --repo-update
 
-      - name: Ensure Gradlew is executable
-        run: chmod +x allsplit.money.app/android/gradlew
+      - name: Build iOS app
+        run: |
+          xcodebuild -workspace ios/YourApp.xcworkspace \
+            -scheme YourApp \
+            -sdk iphoneos \
+            -configuration Release \
+            archive -archivePath $PWD/build/YourApp.xcarchive
 
-      - name: Decode Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > allsplit.money.app/android/app/keystore.jks
-
-      - name: Build Signed APK
-        run: ./gradlew assembleRelease
-        working-directory: allsplit.money.app/android
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk
-          path: allsplit.money.app/android/app/build/outputs/apk/release/*.apk
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/YourApp.xcarchive \
+            -exportOptionsPlist ios/exportOptions.plist \
+            -exportPath $PWD/build
