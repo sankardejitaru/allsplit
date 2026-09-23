@@ -1,13 +1,6 @@
-name: Android Build
-
-on:
-  push:
-    branches:
-      - cleanup-architecture
-
 jobs:
   build-android:
-    runs-on: ubuntu-24.04   # safer than ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -17,7 +10,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Ensure Gradlew is executable
         run: chmod +x allsplit.money.app/android/gradlew
 
