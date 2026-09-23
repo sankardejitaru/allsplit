@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,10 +14,12 @@ from app.schemas.split import (
     MyOweListRequest,
     ReopenShareRequest,
     SaveSplitRequest,
+    SendReminderRequest,
     UpdatePriceRequest,
     UpdateSplitNameRequest,
+    UpdateSplitRequest,
 )
-from app.services.notification_service import notify_split_participants
+from app.services.notification_service import notify_split_participants, send_payment_reminder
 from app.services.split_settlement_service import (
     derive_bill_settlement_status,
     filter_created_splits,
@@ -287,6 +289,138 @@ def update_split_name(
         "success": True,
         "message": "Bill name updated",
         "split_name": split_name,
+        "updated_doc": updated_doc,
+    }
+
+
+def _bill_has_locked_participants(document: Dict[str, Any], creator_mobile: Optional[str]) -> bool:
+    for person in document.get("people") or []:
+        if phones_match(person.get("phone"), creator_mobile):
+            continue
+        if person.get("status") == "closed" or person.get("settlement") in (
+            "pending",
+            "settled",
+        ):
+            return True
+    return False
+
+
+def _merge_people_for_update(
+    existing_people: List[Dict[str, Any]],
+    next_people: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    by_phone = {}
+    for person in existing_people or []:
+        phone = person.get("phone")
+        if phone:
+            by_phone[phone] = person
+
+    merged = []
+    for person in next_people or []:
+        phone = person.get("phone")
+        previous = by_phone.get(phone) if phone else None
+        entry = {**(previous or {}), **person}
+        if previous:
+            for key in (
+                "status",
+                "settlement",
+                "closed_at",
+                "settled_at",
+                "settled_by",
+                "reopened_at",
+                "reopened_by",
+                "last_reminded_at",
+            ):
+                if key in previous and key not in person:
+                    entry[key] = previous[key]
+        merged.append(entry)
+    return merged
+
+
+@router.post("/update-split")
+def update_split(
+    update: UpdateSplitRequest,
+    actor_mobile: Optional[str] = Depends(get_actor_mobile),
+):
+    split_name = (update.split_name or "").strip()
+    if not split_name:
+        raise HTTPException(status_code=400, detail="Bill name is required")
+
+    if not update.people:
+        raise HTTPException(status_code=400, detail="At least one person is required")
+
+    if not update.items:
+        raise HTTPException(status_code=400, detail="At least one item is required")
+
+    try:
+        query = {"_id": ObjectId(update.id)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    document = split_collection.find_one(query)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not is_split_creator(document, actor_mobile):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the bill creator can edit this bill",
+        )
+
+    creator_mobile = get_creator_mobile(document)
+    if _bill_has_locked_participants(document, creator_mobile):
+        raise HTTPException(
+            status_code=400,
+            detail="This bill can no longer be fully edited because someone has closed their share. You can still rename it.",
+        )
+
+    existing_meta = document.get("meta") or {}
+    next_meta = {
+        **existing_meta,
+        **(update.meta or {}),
+        "creator_mobile": creator_mobile or existing_meta.get("creator_mobile"),
+        "created_at": existing_meta.get("created_at"),
+        "created_by": existing_meta.get("created_by", "mobile_app_ui"),
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+    merged_people = _merge_people_for_update(document.get("people") or [], update.people)
+
+    set_fields: Dict[str, Any] = {
+        "split_name": split_name,
+        "people": merged_people,
+        "items": update.items,
+        "meta": next_meta,
+        "updated_at": datetime.utcnow(),
+    }
+    if update.bill_summary is not None:
+        set_fields["bill_summary"] = update.bill_summary
+
+    split_collection.update_one(query, {"$set": set_fields})
+    updated_doc = serialize_doc(split_collection.find_one(query))
+    if updated_doc:
+        updated_doc["bill_settlement_status"] = derive_bill_settlement_status(
+            updated_doc.get("people") or [],
+            get_creator_mobile(updated_doc),
+        )
+
+    audit_event(
+        action="split.update",
+        category="split",
+        status="success",
+        message="Bill updated by creator",
+        actor_mobile=actor_mobile,
+        resource_type="split",
+        resource_id=update.id,
+        details={
+            "split_name": split_name,
+            "people_count": len(merged_people),
+            "items_count": len(update.items),
+        },
+    )
+    return {
+        "success": True,
+        "message": "Bill updated",
         "updated_doc": updated_doc,
     }
 
@@ -753,4 +887,121 @@ def reopen_share(
         "success": True,
         "message": "Share reopened. Participant can review and close again.",
         "updated_doc": updated_doc,
+    }
+
+
+def _person_display_name(person: Dict[str, Any]) -> str:
+    firstname = str(person.get("firstname") or "").strip()
+    lastname = str(person.get("lastname") or "").strip()
+    return f"{firstname} {lastname}".strip() or str(person.get("name") or "there")
+
+
+@router.post("/send-reminder")
+def send_reminder(
+    update: SendReminderRequest,
+    actor_mobile: Optional[str] = Depends(get_actor_mobile),
+):
+    try:
+        query = {"_id": ObjectId(update.id)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    document = split_collection.find_one(query)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not is_split_creator(document, actor_mobile):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the bill creator can send reminders",
+        )
+
+    creator_profile = users_collection.find_one({"mobile": actor_mobile}) or {}
+    creator_name = (
+        f"{str(creator_profile.get('firstname') or '').strip()} "
+        f"{str(creator_profile.get('lastname') or '').strip()}"
+    ).strip()
+
+    people = document.get("people") or []
+    if update.person_id:
+        targets = [find_person_by_id(people, update.person_id)]
+        if not targets[0]:
+            raise HTTPException(status_code=404, detail="Participant not found on bill")
+    else:
+        targets = [
+            person
+            for person in people
+            if not phones_match(person.get("phone"), get_creator_mobile(document))
+            and get_person_settlement(person) != "settled"
+        ]
+
+    reminded = []
+    skipped = []
+    now = datetime.utcnow()
+    cooldown = timedelta(minutes=30)
+
+    for person in targets:
+        if not person:
+            continue
+        if phones_match(person.get("phone"), get_creator_mobile(document)):
+            skipped.append({"person_id": person.get("id"), "reason": "creator"})
+            continue
+        if get_person_settlement(person) == "settled":
+            skipped.append({"person_id": person.get("id"), "reason": "already_settled"})
+            continue
+
+        last_reminded = person.get("last_reminded_at")
+        if last_reminded:
+            try:
+                if isinstance(last_reminded, str):
+                    last_reminded = datetime.fromisoformat(
+                        last_reminded.replace("Z", "+00:00")
+                    ).replace(tzinfo=None)
+                elif getattr(last_reminded, "tzinfo", None):
+                    last_reminded = last_reminded.replace(tzinfo=None)
+                if now - last_reminded < cooldown:
+                    skipped.append(
+                        {"person_id": person.get("id"), "reason": "recently_reminded"}
+                    )
+                    continue
+            except Exception:
+                pass
+
+        amount = get_person_owe_amount(document, person.get("id"))
+        send_payment_reminder(document, person, amount, creator_name or None)
+        split_collection.update_one(
+            query,
+            {"$set": {"people.$[person].last_reminded_at": now}},
+            array_filters=[{"person.id": {"$eq": person.get("id")}}],
+        )
+        reminded.append({
+            "person_id": person.get("id"),
+            "name": _person_display_name(person),
+            "amount": amount,
+        })
+
+    audit_event(
+        action="split.send_reminder",
+        category="split",
+        status="success",
+        message="Payment reminder sent",
+        actor_mobile=actor_mobile,
+        resource_type="split",
+        resource_id=update.id,
+        details={"reminded": reminded, "skipped": skipped},
+    )
+
+    if not reminded:
+        return {
+            "success": False,
+            "message": "No reminders sent. Try again later or pick someone who still owes.",
+            "reminded": reminded,
+            "skipped": skipped,
+        }
+
+    return {
+        "success": True,
+        "message": f"Reminder sent to {len(reminded)} people",
+        "reminded": reminded,
+        "skipped": skipped,
     }

@@ -85,7 +85,10 @@ def notify_split_participants(
         if creator_mobile and phone == creator_mobile:
             continue
 
-        name = person.get("name", "there")
+        name = (
+            f"{str(person.get('firstname') or '').strip()} {str(person.get('lastname') or '').strip()}".strip()
+            or person.get("name", "there")
+        )
         invite_text = (
             f"Hi {name}, you were added to split '{split_name}' on AllSplit. "
             f"Open the app to view {amount_text}."
@@ -105,3 +108,39 @@ def notify_split_participants(
         )
 
     return {"sent": results, "skipped": False}
+
+
+def person_display_name(person: Dict[str, Any]) -> str:
+    firstname = str(person.get("firstname") or "").strip()
+    lastname = str(person.get("lastname") or "").strip()
+    combined = f"{firstname} {lastname}".strip()
+    return combined or str(person.get("name") or "there")
+
+
+def send_payment_reminder(
+    split_doc: Dict[str, Any],
+    person: Dict[str, Any],
+    amount: Optional[float] = None,
+    creator_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    split_name = split_doc.get("split_name", "a bill")
+    name = person_display_name(person)
+    amount_text = f"₹{amount:.2f}" if amount is not None else "your share"
+    from_text = f" from {creator_name}" if creator_name else ""
+    message = (
+        f"Hi {name}, reminder{from_text} on AllSplit. "
+        f"You still owe {amount_text} on '{split_name}'. "
+        f"Please open the app and close your share."
+    )
+    phone = person.get("phone")
+    results = [
+        send_whatsapp(phone, message),
+        send_sms(phone, message),
+        send_push(
+            phone,
+            "AllSplit reminder",
+            f"You still owe {amount_text} on {split_name}.",
+            data={"split_name": split_name, "phone": phone},
+        ),
+    ]
+    return {"sent": results, "message": message}

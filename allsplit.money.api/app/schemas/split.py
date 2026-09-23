@@ -28,6 +28,15 @@ class UpdateSplitNameRequest(BaseModel):
     split_name: str = Field(..., min_length=1, max_length=120)
 
 
+class UpdateSplitRequest(BaseModel):
+    id: str
+    split_name: str = Field(..., min_length=1, max_length=120)
+    people: List[Dict[str, Any]] = Field(default_factory=list)
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+    bill_summary: Optional[Dict[str, Any]] = None
+    meta: Optional[Dict[str, Any]] = None
+
+
 class CreatedSplitsListRequest(BaseModel):
     device_id: str
 
@@ -51,6 +60,18 @@ class ContactEnsureRequest(BaseModel):
     phone: str
     firstname: str = "Me"
     lastname: str = "User"
+
+
+class ContactInviteAcceptRequest(BaseModel):
+    token: Optional[str] = None
+    phone: Optional[str] = None
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+
+
+class SendReminderRequest(BaseModel):
+    id: str
+    person_id: Optional[str] = None
 
 
 class SaveSplitRequest(BaseModel):
