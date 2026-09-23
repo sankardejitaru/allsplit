@@ -78,6 +78,61 @@ export const getUserDisplayName = (firstname, lastname) => {
   return name || "AllSplit User";
 };
 
+/** Build the signed-in user as a bill participant (default on create). */
+export const getSelfSplitPerson = async () => {
+  const [mobile, firstname, lastname] = await Promise.all([
+    getUserMobile(),
+    getUserFirstname(),
+    getUserLastname(),
+  ]);
+
+  const phone = normalizePhone(mobile);
+  if (!phone) {
+    return null;
+  }
+
+  const first = String(firstname || "").trim() || "Me";
+  const last = String(lastname || "").trim();
+  const name = getUserDisplayName(first, last === "" ? "" : last);
+
+  return {
+    id: `self_${phone}`,
+    firstname: first,
+    lastname: last,
+    name: name === "AllSplit User" ? "Me" : name,
+    phone,
+    source: "self",
+  };
+};
+
+export const ensureSelfInPeople = (people = [], selfPerson) => {
+  if (!selfPerson?.phone) {
+    return Array.isArray(people) ? people : [];
+  }
+
+  const list = Array.isArray(people) ? [...people] : [];
+  const existingIndex = list.findIndex((person) =>
+    phonesMatch(person?.phone, selfPerson.phone)
+  );
+
+  if (existingIndex >= 0) {
+    const existing = list[existingIndex];
+    list[existingIndex] = {
+      ...selfPerson,
+      ...existing,
+      id: existing.id || selfPerson.id,
+      firstname: existing.firstname || selfPerson.firstname,
+      lastname: existing.lastname || selfPerson.lastname,
+      name: existing.name || selfPerson.name,
+      phone: selfPerson.phone,
+      source: existing.source || "self",
+    };
+    return list;
+  }
+
+  return [selfPerson, ...list];
+};
+
 export const getProfileInitials = (firstname, lastname, mobile) => {
   const first = (firstname || "").trim();
   const last = (lastname || "").trim();

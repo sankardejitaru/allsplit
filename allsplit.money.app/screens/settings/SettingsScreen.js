@@ -311,6 +311,20 @@ export default function SettingsScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>People</Text>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => navigation.navigate("InviteQr")}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="qr-code-outline" size={22} color={colors.primary} style={styles.rowIcon} />
+              <Text style={styles.rowLabel}>Invite QR</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity
             style={styles.row}

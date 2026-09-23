@@ -21,4 +21,5 @@ export {
 } from "./createdSplitsStyles";
 export { createDashboardStyles } from "./dashboardStyles";
 export { createSettingsStyles } from "./settingsStyles";
+export { createInviteStyles } from "./inviteStyles";
 export { createAuditLogStyles } from "./auditLogStyles";

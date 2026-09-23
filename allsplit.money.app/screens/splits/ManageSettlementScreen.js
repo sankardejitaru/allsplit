@@ -6,26 +6,35 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DeviceInfo from "react-native-device-info";
-import { createdSplitsList, markSettled, reopenShare } from "../../services/splitService";
+import { createdSplitsList, markSettled, reopenShare, sendReminder, updateSplitName } from "../../services/splitService";
+import { sendPaymentReminder, sendPaymentReminders } from "../../services/notificationService";
 import { createManageSettlementStyles } from "../../styles";
 import { useThemedStyles } from "../../hooks/useThemedStyles";
 import { useAppTheme } from "../../context/ThemeContext";
 import { showToast } from "../../utils/toastService";
 import {
   findPersonByPhone,
+  getUserDisplayName,
+  getUserFirstname,
+  getUserLastname,
   getUserMobile,
 } from "../../utils/userIdentity";
+import { getPersonFullName } from "../../utils/phoneUtils";
 import {
   getBillSettlementStatus,
   getPersonOweForSplit,
   getPersonSettlement,
   canCreatorReopenShare,
   canCreatorMarkReceived,
+  canCreatorRemind,
+  canCreatorEditBill,
+  getRemindablePeople,
   isShareReopened,
 } from "../../utils/splitStats";
 import { goBackOrNavigate } from "../../utils/navigationHelpers";
@@ -72,6 +81,11 @@ export default function ManageSettlementScreen({ route, navigation }) {
   const [reopeningPersonId, setReopeningPersonId] = useState("");
   const [confirmPerson, setConfirmPerson] = useState(null);
   const [reopenPerson, setReopenPerson] = useState(null);
+  const [remindingPersonId, setRemindingPersonId] = useState("");
+  const [remindingAll, setRemindingAll] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [draftSplitName, setDraftSplitName] = useState("");
+  const [savingSplitName, setSavingSplitName] = useState(false);
 
   const refreshBill = async () => {
     setLoading(true);
@@ -104,6 +118,12 @@ export default function ManageSettlementScreen({ route, navigation }) {
 
   useHardwareBack(
     useCallback(() => {
+      if (showRenameModal) {
+        if (!savingSplitName) {
+          setShowRenameModal(false);
+        }
+        return true;
+      }
       if (confirmPerson) {
         setConfirmPerson(null);
         return true;
@@ -114,7 +134,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
       }
       goBackOrNavigate(navigation, { screen: "CreatedSplits" });
       return true;
-    }, [confirmPerson, reopenPerson, navigation])
+    }, [showRenameModal, savingSplitName, confirmPerson, reopenPerson, navigation])
   );
 
   const participants = useMemo(() => {
@@ -124,7 +144,150 @@ export default function ManageSettlementScreen({ route, navigation }) {
   }, [bill?.people, userMobile]);
 
   const billStatus = getBillSettlementStatus(bill, userMobile);
-  const actionBusy = !!settlingPersonId || !!reopeningPersonId;
+  const actionBusy =
+    !!settlingPersonId || !!reopeningPersonId || !!remindingPersonId || remindingAll;
+  const remindablePeople = useMemo(
+    () => getRemindablePeople(bill, userMobile),
+    [bill, userMobile]
+  );
+
+  const openRenameModal = () => {
+    setDraftSplitName(bill?.split_name || "");
+    setShowRenameModal(true);
+  };
+
+  const openEditBill = () => {
+    if (!bill) {
+      return;
+    }
+
+    if (!canCreatorEditBill(bill, userMobile)) {
+      openRenameModal();
+      showToast(
+        "info",
+        "Rename only",
+        "Someone already closed their share. You can still rename this bill."
+      );
+      return;
+    }
+
+    navigation.navigate("Details", {
+      mode: "edit",
+      billId: bill._id,
+      editBill: bill,
+      returnScreen: "ManageSettlement",
+      selectedPeople: bill.people || [],
+      Items: (bill.items || []).map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        qty: entry.qty,
+        price: entry.price,
+        split: entry.split_type === "equal" ? "equal" : "consumption",
+      })),
+      split_name: bill.split_name || "",
+    });
+  };
+
+  const confirmRenameSplit = async () => {
+    const nextName = String(draftSplitName || "").trim();
+    if (!nextName) {
+      showToast("danger", "Bill name required", "Enter a name for this bill");
+      return;
+    }
+
+    if (nextName === String(bill?.split_name || "").trim()) {
+      setShowRenameModal(false);
+      return;
+    }
+
+    try {
+      setSavingSplitName(true);
+      const response = await updateSplitName({
+        id: bill._id,
+        split_name: nextName,
+      });
+
+      if (!response.success) {
+        showToast(
+          "danger",
+          "Could not rename",
+          response.message || response.detail || "Try again"
+        );
+        return;
+      }
+
+      setBill((prev) => ({
+        ...prev,
+        split_name: response.split_name || nextName,
+      }));
+      setShowRenameModal(false);
+      showToast("info", "Bill renamed", "Bill name has been updated");
+    } catch (error) {
+      showToast("danger", "Could not rename", "Try again");
+    } finally {
+      setSavingSplitName(false);
+    }
+  };
+
+  const remindPerson = async (person) => {
+    if (!person || !bill?._id) {
+      return;
+    }
+
+    try {
+      setRemindingPersonId(person.id);
+      const response = await sendReminder({
+        id: bill._id,
+        person_id: person.id,
+      });
+
+      if (!response.success && response.message?.includes("recently")) {
+        showToast("info", "Already reminded", response.message);
+      }
+
+      const [firstname, lastname] = await Promise.all([
+        getUserFirstname(),
+        getUserLastname(),
+      ]);
+      await sendPaymentReminder({
+        splitName: bill.split_name,
+        person,
+        amount: getPersonOweForSplit(bill, person.id),
+        creatorName: getUserDisplayName(firstname, lastname),
+      });
+    } catch (error) {
+      showToast("danger", "Reminder failed", "Try again");
+    } finally {
+      setRemindingPersonId("");
+    }
+  };
+
+  const remindAll = async () => {
+    if (!remindablePeople.length || !bill?._id) {
+      return;
+    }
+
+    try {
+      setRemindingAll(true);
+      await sendReminder({ id: bill._id });
+      const [firstname, lastname] = await Promise.all([
+        getUserFirstname(),
+        getUserLastname(),
+      ]);
+      const amountsByPersonId = {};
+      remindablePeople.forEach((person) => {
+        amountsByPersonId[person.id] = getPersonOweForSplit(bill, person.id);
+      });
+      await sendPaymentReminders({
+        splitName: bill.split_name,
+        people: remindablePeople,
+        amountsByPersonId,
+        creatorName: getUserDisplayName(firstname, lastname),
+      });
+    } finally {
+      setRemindingAll(false);
+    }
+  };
 
   const confirmMarkSettled = async () => {
     if (!confirmPerson || !bill?._id) {
@@ -149,7 +312,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
         await refreshBill();
       }
 
-      showToast("info", "Payment received", `${confirmPerson.name} marked as received`);
+      showToast("info", "Payment received", `${getPersonFullName(confirmPerson)} marked as received`);
       setConfirmPerson(null);
     } catch (error) {
       showToast("danger", "Error", "Failed to mark payment as received");
@@ -188,7 +351,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
       showToast(
         "info",
         "Share reopened",
-        `${reopenPerson.name} can review and close their share again.`
+        `${getPersonFullName(reopenPerson)} can review and close their share again.`
       );
       setReopenPerson(null);
     } catch (error) {
@@ -216,7 +379,13 @@ export default function ManageSettlementScreen({ route, navigation }) {
           <Ionicons name="arrow-back" size={22} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Collect Payments</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={openEditBill}
+          accessibilityLabel="Edit bill"
+        >
+          <Ionicons name="pencil" size={18} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.summaryBar}>
@@ -231,6 +400,23 @@ export default function ManageSettlementScreen({ route, navigation }) {
           <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
         ) : null}
 
+        {remindablePeople.length > 0 ? (
+          <TouchableOpacity
+            style={[styles.remindAllBtn, actionBusy && styles.iconActionBtnDisabled]}
+            onPress={remindAll}
+            disabled={actionBusy}
+          >
+            {remindingAll ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+            )}
+            <Text style={styles.remindAllText}>
+              Remind all ({remindablePeople.length})
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
         {participants.length === 0 ? (
           <Text style={styles.emptyText}>No other participants on this bill.</Text>
         ) : (
@@ -241,8 +427,11 @@ export default function ManageSettlementScreen({ route, navigation }) {
             const wasReopened = isShareReopened(person);
             const canMarkReceived = canCreatorMarkReceived(bill, userMobile, person);
             const canReopen = canCreatorReopenShare(bill, userMobile, person);
+            const canRemind = canCreatorRemind(bill, userMobile, person);
             const isReceiving = settlingPersonId === person.id;
             const isReopening = reopeningPersonId === person.id;
+            const isReminding = remindingPersonId === person.id;
+            const fullName = getPersonFullName(person);
 
             return (
               <View
@@ -252,7 +441,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
                 <View style={[styles.statusDot, pillStyle.pill]} />
                 <View style={styles.compactInfo}>
                   <Text style={styles.compactName} numberOfLines={1}>
-                    {person.name}
+                    {fullName}
                   </Text>
                   <Text style={styles.compactMeta}>
                     {settlementLabel(settlement, person)} · ₹{amount.toFixed(2)}
@@ -260,24 +449,41 @@ export default function ManageSettlementScreen({ route, navigation }) {
                 </View>
 
                 <View style={styles.compactActions}>
+                  {canRemind ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.textActionBtn,
+                        actionBusy && styles.iconActionBtnDisabled,
+                      ]}
+                      disabled={actionBusy}
+                      onPress={() => remindPerson(person)}
+                      accessibilityLabel={`Remind ${fullName}`}
+                    >
+                      {isReminding ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Text style={styles.textActionLabel}>Remind</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+
                   {canMarkReceived ? (
                     <TouchableOpacity
                       style={[
-                        styles.iconActionBtn,
-                        styles.iconActionBtnPrimary,
+                        styles.textActionBtn,
+                        styles.textActionBtnPrimary,
                         actionBusy && styles.iconActionBtnDisabled,
                       ]}
                       disabled={actionBusy}
                       activeOpacity={0.7}
                       onPress={() => setConfirmPerson(person)}
-                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Mark ${person.name} as received`}
+                      accessibilityLabel={`Mark ${fullName} as received`}
                     >
                       {isReceiving ? (
                         <ActivityIndicator size="small" color={colors.white} />
                       ) : (
-                        <Ionicons name="checkmark" size={15} color={colors.white} />
+                        <Text style={styles.textActionLabelPrimary}>Received</Text>
                       )}
                     </TouchableOpacity>
                   ) : null}
@@ -285,24 +491,19 @@ export default function ManageSettlementScreen({ route, navigation }) {
                   {canReopen ? (
                     <TouchableOpacity
                       style={[
-                        styles.iconActionBtn,
+                        styles.textActionBtn,
                         actionBusy && styles.iconActionBtnDisabled,
                       ]}
                       disabled={actionBusy}
                       activeOpacity={0.7}
                       onPress={() => setReopenPerson(person)}
-                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Reopen ${person.name}'s share`}
+                      accessibilityLabel={`Reopen ${fullName}'s share`}
                     >
                       {isReopening ? (
                         <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
-                        <Ionicons
-                          name="refresh-outline"
-                          size={15}
-                          color={colors.primary}
-                        />
+                        <Text style={styles.textActionLabel}>Reopen</Text>
                       )}
                     </TouchableOpacity>
                   ) : null}
@@ -324,7 +525,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
             <Text style={styles.modalTitle}>Mark as received</Text>
             <Text style={styles.modalMessage}>
               Confirm ₹{getPersonOweForSplit(bill, confirmPerson?.id).toFixed(2)} received
-              from {confirmPerson?.name}?
+              from {getPersonFullName(confirmPerson)}?
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -356,7 +557,7 @@ export default function ManageSettlementScreen({ route, navigation }) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reopen share</Text>
             <Text style={styles.modalMessage}>
-              Reopen {reopenPerson?.name}&apos;s share of ₹
+              Reopen {getPersonFullName(reopenPerson)}&apos;s share of ₹
               {getPersonOweForSplit(bill, reopenPerson?.id).toFixed(2)}?
             </Text>
             <View style={styles.modalActions}>
@@ -372,6 +573,45 @@ export default function ManageSettlementScreen({ route, navigation }) {
               >
                 <Text style={styles.modalConfirmText}>
                   {reopeningPersonId ? "Reopening..." : "Reopen"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        visible={showRenameModal}
+        animationType="fade"
+        onRequestClose={() => !savingSplitName && setShowRenameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit bill name</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={draftSplitName}
+              onChangeText={setDraftSplitName}
+              placeholder="Bill name"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+              maxLength={120}
+              editable={!savingSplitName}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setShowRenameModal(false)}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmRenameSplit}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {savingSplitName ? "Saving..." : "Save"}
                 </Text>
               </TouchableOpacity>
             </View>

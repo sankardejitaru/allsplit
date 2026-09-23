@@ -56,10 +56,26 @@ export const reopenShare = async (formData) => {
   return data;
 };
 
+export const sendReminder = async (formData) => {
+  const data = await apiPost("/send-reminder", formData);
+  if (data.success === false && !data.message) {
+    return { message: "Failed to send reminder", success: false };
+  }
+  return data;
+};
+
 export const updateSplitName = async (formData) => {
   const data = await apiPost("/update-split-name", formData);
   if (data.success === false && !data.message) {
     return { message: "Failed to update bill name", success: false };
+  }
+  return data;
+};
+
+export const updateSplit = async (formData) => {
+  const data = await apiPost("/update-split", formData);
+  if (data.success === false && !data.message) {
+    return { message: "Failed to update bill", success: false };
   }
   return data;
 };

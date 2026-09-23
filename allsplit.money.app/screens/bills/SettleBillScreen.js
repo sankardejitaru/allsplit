@@ -29,7 +29,7 @@ import { useHardwareBack } from "../../hooks/useHardwareBack";
 import { goBackOrNavigate, resetToScreen } from "../../utils/navigationHelpers";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useAppTheme } from "../../context/ThemeContext";
-import { getContactInitials } from "../../utils/phoneUtils";
+import { getContactInitials, getPersonFullName } from "../../utils/phoneUtils";
 
 function isConsumptionItem(item) {
   return !item?.split_type || item.split_type === "consumption";
@@ -490,7 +490,7 @@ export default function SettleBillScreen({ route, navigation }) {
       showToast(
         "info",
         "Share reopened",
-        `${reopenPerson.name} can review their share and close again.`
+        `${getPersonFullName(reopenPerson)} can review their share and close again.`
       );
       setReopenPerson(null);
     } catch (error) {
@@ -632,7 +632,7 @@ export default function SettleBillScreen({ route, navigation }) {
                     <View style={[styles.statusDot, styles[`dot_${statusKey}`]]} />
                   )}
                   <Text style={styles.chipName} numberOfLines={1}>
-                    {person.name}
+                    {getPersonFullName(person)}
                   </Text>
                   {wasReopened ? (
                     <Text style={styles.chipReopenedTag}>Reopened</Text>
@@ -649,7 +649,7 @@ export default function SettleBillScreen({ route, navigation }) {
                       onPress={() => setReceivePerson(person)}
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Mark ${person.name} as received`}
+                      accessibilityLabel={`Mark ${getPersonFullName(person)} as received`}
                     >
                       {isReceiving ? (
                         <ActivityIndicator size="small" color={colors.white} />
@@ -673,7 +673,7 @@ export default function SettleBillScreen({ route, navigation }) {
                       onPress={() => setReopenPerson(person)}
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Reopen ${person.name}'s share`}
+                      accessibilityLabel={`Reopen ${getPersonFullName(person)}'s share`}
                     >
                       {isReopening ? (
                         <ActivityIndicator size="small" color={colors.primary} />
@@ -776,9 +776,9 @@ export default function SettleBillScreen({ route, navigation }) {
               );
               const isYou = consumer.person_id === myPersonId;
               const editable = canEditConsumer(consumer.person_id, item);
-              const displayName = isYou ? "You" : person?.name ?? "Guest";
+              const displayName = isYou ? "You" : getPersonFullName(person) || "Guest";
               const initials = getContactInitials(
-                isYou ? { name: "You" } : { name: person?.name ?? "Guest" }
+                isYou ? { name: "You" } : person || { name: "Guest" }
               );
 
               return (
@@ -982,7 +982,7 @@ export default function SettleBillScreen({ route, navigation }) {
           <View style={styles.confirmBox}>
             <Text style={styles.confirmTitle}>Reopen share</Text>
             <Text style={styles.confirmMessage}>
-              Reopen {reopenPerson?.name}&apos;s share so they can review quantities
+              Reopen {getPersonFullName(reopenPerson)}&apos;s share so they can review quantities
               and close again? Any payment confirmation will be cleared.
             </Text>
 
@@ -1024,7 +1024,7 @@ export default function SettleBillScreen({ route, navigation }) {
             <Text style={styles.confirmMessage}>
               Confirm payment of ₹
               {getPersonOweForSplit(billData, receivePerson?.id).toFixed(2)} received
-              from {receivePerson?.name}?
+              from {getPersonFullName(receivePerson)}?
             </Text>
 
             <View style={styles.confirmActions}>

@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 
 /** API host or full base URL (no trailing slash). */
+/* const LOCAL_DEV_IP = "http://192.168.10.110:8000"; */
 const LOCAL_DEV_IP = "https://mobileapi.allsplit.money";
 const API_PORT = 443;
 

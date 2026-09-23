@@ -53,6 +53,9 @@ export function createSelectPeopleStyles(colors) {
     alignItems: "center",
     justifyContent: "center",
   },
+  addBtnSpacer: {
+    marginLeft: 8,
+  },
   tabRow: {
     flexDirection: "row",
     marginHorizontal: 20,

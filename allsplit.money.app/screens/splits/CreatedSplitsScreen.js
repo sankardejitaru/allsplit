@@ -6,19 +6,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DeviceInfo from "react-native-device-info";
-import { createdSplitsList } from "../../services/splitService";
+import { createdSplitsList, updateSplitName } from "../../services/splitService";
 import { createCreatedSplitsStyles } from "../../styles";
 import { useThemedStyles } from "../../hooks/useThemedStyles";
 import { useAppTheme } from "../../context/ThemeContext";
+import { showToast } from "../../utils/toastService";
 import {
   countPendingSettlements,
   getBillSettlementStatus,
   getCreatorNetDueSummary,
+  canCreatorEditBill,
 } from "../../utils/splitStats";
 import { goBackOrNavigate } from "../../utils/navigationHelpers";
 
@@ -80,6 +84,9 @@ export default function CreatedSplitsScreen({ navigation }) {
   const [userMobile, setUserMobileState] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [renameSplit, setRenameSplit] = useState(null);
+  const [draftSplitName, setDraftSplitName] = useState("");
+  const [savingSplitName, setSavingSplitName] = useState(false);
 
   const fetchCreatedSplits = async () => {
     try {
@@ -113,6 +120,86 @@ export default function CreatedSplitsScreen({ navigation }) {
     fetchCreatedSplits();
   };
 
+  const openRename = (item) => {
+    setRenameSplit(item);
+    setDraftSplitName(item?.split_name || "");
+  };
+
+  const openEditBill = (item) => {
+    if (!canCreatorEditBill(item, userMobile)) {
+      openRename(item);
+      showToast(
+        "info",
+        "Rename only",
+        "Someone already closed their share. You can still rename this bill."
+      );
+      return;
+    }
+
+    navigation.navigate("Details", {
+      mode: "edit",
+      billId: item._id,
+      editBill: item,
+      returnScreen: "CreatedSplits",
+      selectedPeople: item.people || [],
+      Items: (item.items || []).map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        qty: entry.qty,
+        price: entry.price,
+        split: entry.split_type === "equal" ? "equal" : "consumption",
+      })),
+      split_name: item.split_name || "",
+    });
+  };
+
+  const confirmRenameSplit = async () => {
+    const nextName = String(draftSplitName || "").trim();
+    if (!nextName) {
+      showToast("danger", "Bill name required", "Enter a name for this bill");
+      return;
+    }
+
+    if (!renameSplit?._id) {
+      return;
+    }
+
+    if (nextName === String(renameSplit.split_name || "").trim()) {
+      setRenameSplit(null);
+      return;
+    }
+
+    try {
+      setSavingSplitName(true);
+      const response = await updateSplitName({
+        id: renameSplit._id,
+        split_name: nextName,
+      });
+
+      if (!response.success) {
+        showToast(
+          "danger",
+          "Could not rename",
+          response.message || response.detail || "Try again"
+        );
+        return;
+      }
+
+      const savedName = response.split_name || nextName;
+      setSplits((prev) =>
+        prev.map((entry) =>
+          entry._id === renameSplit._id ? { ...entry, split_name: savedName } : entry
+        )
+      );
+      setRenameSplit(null);
+      showToast("info", "Bill renamed", "Bill name has been updated");
+    } catch (error) {
+      showToast("danger", "Could not rename", "Try again");
+    } finally {
+      setSavingSplitName(false);
+    }
+  };
+
   const renderItem = ({ item }) => {
     const billStatus = getBillSettlementStatus(item, userMobile);
     const badgeStyles = statusStyle(billStatus, styles);
@@ -121,17 +208,30 @@ export default function CreatedSplitsScreen({ navigation }) {
     const netDueBreakdown = formatNetDueBreakdown(netDue);
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() =>
-          navigation.navigate("ManageSettlement", {
-            bill: item,
-            userMobile,
-          })
-        }
-      >
+      <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.splitName}>{item.split_name || "Untitled split"}</Text>
+          <View style={styles.splitNameWrap}>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("ManageSettlement", {
+                  bill: item,
+                  userMobile,
+                })
+              }
+            >
+              <Text style={styles.splitName}>{item.split_name || "Untitled split"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.editNameBtn}
+              onPress={() => openEditBill(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="pencil" size={12} color={colors.primary} />
+              <Text style={styles.editNameText}>
+                {canCreatorEditBill(item, userMobile) ? "Edit bill" : "Rename"}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <View style={[styles.statusBadge, badgeStyles.badge]}>
             <Text style={[styles.statusText, badgeStyles.text]}>
               {statusLabel(billStatus)}
@@ -139,34 +239,43 @@ export default function CreatedSplitsScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText}>
-            {item?.people?.length ?? 0} people
-          </Text>
-          <Text style={styles.metaText}>
-            {item?.items?.length ?? 0} items
-          </Text>
-          <Text style={styles.metaText}>
-            {new Date(item?.meta?.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-
-        <View style={styles.netDueRow}>
-          <View style={styles.netDueMain}>
-            <Text style={styles.netDueLabel}>Net due</Text>
-            <Text style={styles.netDueAmount}>{formatRupee(netDue.netDue)}</Text>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate("ManageSettlement", {
+              bill: item,
+              userMobile,
+            })
+          }
+        >
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>
+              {item?.people?.length ?? 0} people
+            </Text>
+            <Text style={styles.metaText}>
+              {item?.items?.length ?? 0} items
+            </Text>
+            <Text style={styles.metaText}>
+              {new Date(item?.meta?.created_at).toLocaleDateString()}
+            </Text>
           </View>
-          {netDueBreakdown ? (
-            <Text style={styles.netDueBreakdown}>{netDueBreakdown}</Text>
-          ) : null}
-        </View>
 
-        {pendingCount > 0 ? (
-          <Text style={styles.pendingText}>
-            {pendingCount} payment{pendingCount === 1 ? "" : "s"} waiting for confirmation
-          </Text>
-        ) : null}
-      </TouchableOpacity>
+          <View style={styles.netDueRow}>
+            <View style={styles.netDueMain}>
+              <Text style={styles.netDueLabel}>Net due</Text>
+              <Text style={styles.netDueAmount}>{formatRupee(netDue.netDue)}</Text>
+            </View>
+            {netDueBreakdown ? (
+              <Text style={styles.netDueBreakdown}>{netDueBreakdown}</Text>
+            ) : null}
+          </View>
+
+          {pendingCount > 0 ? (
+            <Text style={styles.pendingText}>
+              {pendingCount} payment{pendingCount === 1 ? "" : "s"} waiting for confirmation
+            </Text>
+          ) : null}
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -201,6 +310,44 @@ export default function CreatedSplitsScreen({ navigation }) {
           }
         />
       )}
+      <Modal
+        transparent
+        visible={!!renameSplit}
+        animationType="fade"
+        onRequestClose={() => !savingSplitName && setRenameSplit(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit bill name</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={draftSplitName}
+              onChangeText={setDraftSplitName}
+              placeholder="Bill name"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+              maxLength={120}
+              editable={!savingSplitName}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setRenameSplit(null)}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmRenameSplit}
+                disabled={savingSplitName}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {savingSplitName ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

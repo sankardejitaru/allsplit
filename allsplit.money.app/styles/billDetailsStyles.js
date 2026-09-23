@@ -13,24 +13,62 @@ export function createBillDetailsStyles(colors) {
   addPeopleContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 8,
   },
   sectionLabel: {
     fontSize: 12,
     color: colors.textMuted,
     marginBottom: 8,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.lightGreen,
+  peopleRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
   },
-  avatarText: {
-    fontWeight: "700",
-    color: colors.primary,
+  participantsStripWrap: {
+    flex: 1,
+    flexGrow: 1,
+  },
+  participantsStrip: {
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 8,
+  },
+  participantChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 200,
+    minHeight: 36,
+  },
+  chip_open: {
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
+  },
+  chip_self: {
+    backgroundColor: colors.lightGreen,
+    borderColor: colors.primary,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  dot_open: {
+    backgroundColor: colors.muted,
+  },
+  dot_self: {
+    backgroundColor: colors.primary,
+  },
+  chipName: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
   },
   addBtn: {
     width: 48,
@@ -108,11 +146,30 @@ export function createBillDetailsStyles(colors) {
     backgroundColor: colors.white,
     color: colors.primary,
   },
+  dateChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  dateChipText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  billNameHint: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    marginTop: 6,
+  },
   splitinput: {
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     textAlign: "left",
     backgroundColor: colors.white,
     fontSize: 16,

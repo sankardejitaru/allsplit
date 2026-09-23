@@ -16,6 +16,8 @@ import MyOweScreen from "../screens/splits/MyOweScreen";
 import ViewMyOweScreen from "../screens/splits/ViewMyOweScreen";
 import DashboardScreen from "../screens/dashboard/DashboardScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
+import InviteQrScreen from "../screens/settings/InviteQrScreen";
+import ScanContactScreen from "../screens/contacts/ScanContactScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +39,8 @@ export default function AppNavigator() {
       <Stack.Screen name="BillScan" component={BillScanScreen} />
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="InviteQr" component={InviteQrScreen} />
+      <Stack.Screen name="ScanContact" component={ScanContactScreen} />
       <Stack.Screen name="MyOwe" component={MyOweScreen} />
       <Stack.Screen name="CreatedSplits" component={CreatedSplitsScreen} />
       <Stack.Screen name="ManageSettlement" component={ManageSettlementScreen} />

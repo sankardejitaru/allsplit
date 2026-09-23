@@ -91,15 +91,63 @@ function pickBestPhoneFromContact(contact, defaultCountryCode = DEFAULT_COUNTRY_
   return fallback;
 }
 
+export function splitDisplayName(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return {
+    firstname: parts[0] || "",
+    lastname: parts.slice(1).join(" "),
+  };
+}
+
+export function getPersonFullName(person) {
+  if (!person) {
+    return "";
+  }
+
+  const firstname = String(person.firstname || "").trim();
+  const lastname = String(person.lastname || "").trim();
+  const combined = `${firstname} ${lastname}`.trim();
+  if (combined) {
+    return combined;
+  }
+
+  return String(person.name || "").trim();
+}
+
+export function toSplitPerson(person = {}) {
+  const fromName = splitDisplayName(person.name);
+  const firstname = String(person.firstname || "").trim() || fromName.firstname;
+  const lastname = String(person.lastname || "").trim() || fromName.lastname;
+  const name = getPersonFullName({ ...person, firstname, lastname }) || "Unknown";
+
+  return {
+    ...person,
+    firstname,
+    lastname,
+    name,
+  };
+}
+
 export function normalizeDeviceContact(
   contact,
   defaultCountryCode = DEFAULT_COUNTRY_CODE
 ) {
-  const firstname = (contact.givenName || "").trim();
-  const lastname = (contact.familyName || "").trim();
+  let firstname = (contact.givenName || "").trim();
+  let lastname = (contact.familyName || "").trim();
+
+  if (!firstname || !lastname) {
+    const fromDisplay = splitDisplayName(contact.displayName);
+    firstname = firstname || fromDisplay.firstname;
+    lastname = lastname || fromDisplay.lastname;
+  }
+
   const name =
-    contact.displayName ||
     `${firstname} ${lastname}`.trim() ||
+    (contact.displayName || "").trim() ||
     "Unknown";
 
   const phone = pickBestPhoneFromContact(contact, defaultCountryCode);
@@ -121,9 +169,11 @@ export function normalizeDbContact(
   contact,
   defaultCountryCode = DEFAULT_COUNTRY_CODE
 ) {
-  const firstname = (contact.firstname || "").trim();
-  const lastname = (contact.lastname || "").trim();
-  const name = `${firstname} ${lastname}`.trim();
+  const named = toSplitPerson({
+    firstname: contact.firstname,
+    lastname: contact.lastname,
+    name: contact.name,
+  });
   const phone = normalizeParticipantPhone(contact.phone, defaultCountryCode);
 
   if (!phone) {
@@ -131,10 +181,10 @@ export function normalizeDbContact(
   }
 
   return {
-    id: String(contact._id),
-    firstname,
-    lastname,
-    name,
+    id: String(contact._id ?? contact.id),
+    firstname: named.firstname,
+    lastname: named.lastname,
+    name: named.name,
     phone,
     source: "saved",
   };
@@ -166,8 +216,9 @@ export function normalizePerson(person) {
     return person;
   }
 
+  const named = toSplitPerson(person);
   return {
-    ...person,
+    ...named,
     phone: normalizeParticipantPhone(person.phone),
   };
 }

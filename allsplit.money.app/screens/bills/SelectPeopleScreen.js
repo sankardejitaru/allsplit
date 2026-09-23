@@ -30,6 +30,12 @@ import {
   matchesContactSearch,
   filterDeviceContactsExcludingSaved,
 } from "../../utils/phoneUtils";
+import {
+  ensureSelfInPeople,
+  getSelfSplitPerson,
+  phonesMatch,
+} from "../../utils/userIdentity";
+import { ensureSelfSavedContact } from "../../services/contactService";
 
 const TABS = [
   { id: "saved", label: "Saved" },
@@ -55,13 +61,98 @@ export default function SelectPeopleScreen({ navigation, route }) {
   const [selectedPeople, setSelectedPeople] = useState(
     (route.params?.selectedPeople || []).map(normalizePerson).filter((p) => p.phone)
   );
-  const [items] = useState(route.params?.Items || []);
   const [splitName] = useState(route.params?.split_name || "");
+  const [items] = useState(route.params?.Items || []);
+  const [selfPerson, setSelfPerson] = useState(null);
+  const editMode = route.params?.mode === "edit";
+  const editBillId = route.params?.billId;
+  const editBill = route.params?.editBill;
+  const returnScreen = route.params?.returnScreen;
+
+  const detailsParams = useCallback(
+    (peopleList) => ({
+      selectedPeople: peopleList,
+      Items: items,
+      split_name: splitName,
+      ...(editMode
+        ? {
+            mode: "edit",
+            billId: editBillId,
+            editBill,
+            returnScreen,
+          }
+        : {}),
+    }),
+    [items, splitName, editMode, editBillId, editBill, returnScreen]
+  );
 
   useEffect(() => {
     loadSavedContacts();
     loadDeviceContacts();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const seedSelf = async () => {
+      const self = await getSelfSplitPerson();
+      if (cancelled || !self) {
+        return;
+      }
+
+      setSelfPerson(self);
+      setSelectedPeople((prev) => ensureSelfInPeople(prev, self));
+
+      try {
+        await ensureSelfSavedContact(self.phone, self.firstname, self.lastname);
+        await loadSavedContacts();
+      } catch (error) {
+        console.log("Ensure self contact error:", error);
+      }
+    };
+
+    seedSelf();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const scanned = route.params?.scannedPerson;
+    if (!scanned) {
+      return;
+    }
+
+    const normalized = normalizePerson(scanned);
+    if (normalized?.phone) {
+      setSelectedPeople((prev) =>
+        prev.some(
+          (entry) =>
+            entry.id === normalized.id || entry.phone === normalized.phone
+        )
+          ? prev
+          : [...prev, normalized]
+      );
+      setSavedContacts((prev) => {
+        if (prev.some((entry) => String(entry._id) === String(normalized.id))) {
+          return prev;
+        }
+        return [
+          {
+            _id: normalized.id,
+            firstname: normalized.firstname,
+            lastname: normalized.lastname,
+            phone: normalized.phone,
+          },
+          ...prev,
+        ];
+      });
+      setActiveTab("saved");
+      showToast("info", "Contact added", normalized.name);
+    }
+
+    navigation.setParams({ scannedPerson: undefined });
+  }, [route.params?.scannedPerson, navigation]);
 
   const requestContactsPermission = async () => {
     if (Platform.OS === "android") {
@@ -155,9 +246,21 @@ export default function SelectPeopleScreen({ navigation, route }) {
       return;
     }
 
+    if (selfPerson && phonesMatch(normalized.phone, selfPerson.phone)) {
+      showToast("info", "You stay on the bill", "Your contact is included by default");
+      return;
+    }
+
     setSelectedPeople((prev) =>
-      prev.some((entry) => entry.id === normalized.id)
-        ? prev.filter((entry) => entry.id !== normalized.id)
+      prev.some(
+        (entry) =>
+          entry.id === normalized.id || phonesMatch(entry.phone, normalized.phone)
+      )
+        ? prev.filter(
+            (entry) =>
+              entry.id !== normalized.id &&
+              !phonesMatch(entry.phone, normalized.phone)
+          )
         : [...prev, normalized]
     );
   };
@@ -189,13 +292,9 @@ export default function SelectPeopleScreen({ navigation, route }) {
   const handleBack = useCallback(() => {
     goBackOrNavigate(navigation, {
       screen: "Details",
-      params: {
-        selectedPeople,
-        Items: items,
-        split_name: splitName,
-      },
+      params: detailsParams(ensureSelfInPeople(selectedPeople, selfPerson)),
     });
-  }, [navigation, selectedPeople, items, splitName]);
+  }, [navigation, selectedPeople, selfPerson, detailsParams]);
 
   useHardwareBack(
     useCallback(() => {
@@ -209,20 +308,27 @@ export default function SelectPeopleScreen({ navigation, route }) {
   );
 
   const handleDone = () => {
-    if (selectedPeople.length === 0) {
+    const withSelf = ensureSelfInPeople(
+      selectedPeople.map(normalizePerson).filter((p) => p.phone),
+      selfPerson
+    );
+
+    if (withSelf.length === 0) {
       showToast("danger", "Select people", "Choose at least one person for this split");
       return;
     }
 
-    navigation.navigate("Details", {
-      selectedPeople: selectedPeople.map(normalizePerson).filter((p) => p.phone),
-      Items: items,
-      split_name: splitName,
-    });
+    navigation.navigate("Details", detailsParams(withSelf));
   };
 
   const renderPerson = ({ item }) => {
-    const isSelected = selectedPeople.some((entry) => entry.id === item.id);
+    const isSelf = selfPerson && phonesMatch(item.phone, selfPerson.phone);
+    const isSelected =
+      isSelf ||
+      selectedPeople.some(
+        (entry) =>
+          entry.id === item.id || phonesMatch(entry.phone, item.phone)
+      );
 
     return (
       <TouchableOpacity
@@ -234,7 +340,9 @@ export default function SelectPeopleScreen({ navigation, route }) {
         </View>
 
         <View style={styles.personInfo}>
-          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.name}>
+            {isSelf ? `${item.name} (You)` : item.name}
+          </Text>
           <Text style={styles.phone}>{formatPhoneDisplay(item.phone)}</Text>
         </View>
 
@@ -261,7 +369,30 @@ export default function SelectPeopleScreen({ navigation, route }) {
           <Text style={styles.title}>Choose people</Text>
           <Text style={styles.subtitle}>{selectedPeople.length} selected</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() =>
+            navigation.navigate("ScanContact", {
+              returnTo: "People",
+              returnParams: {
+                selectedPeople,
+                Items: items,
+                split_name: splitName,
+                ...(editMode
+                  ? {
+                      mode: "edit",
+                      billId: editBillId,
+                      editBill,
+                      returnScreen,
+                    }
+                  : {}),
+              },
+            })
+          }
+        >
+          <Ionicons name="qr-code-outline" size={20} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.addBtn, styles.addBtnSpacer]} onPress={() => setShowAddModal(true)}>
           <Ionicons name="person-add-outline" size={20} color="#fff" />
         </TouchableOpacity>
       </View>

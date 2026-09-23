@@ -97,6 +97,24 @@ export const canCreatorMarkReceived = (split, userMobile, person) => {
   return getPersonSettlement(person) === "pending";
 };
 
+export const canCreatorEditBill = (split, userMobile) => {
+  if (!isSplitCreator(split, userMobile)) {
+    return false;
+  }
+
+  const others = (split?.people ?? []).filter(
+    (person) => !findPersonByPhone([person], userMobile)
+  );
+
+  return others.every((person) => {
+    if (person?.status === "closed") {
+      return false;
+    }
+    const settlement = getPersonSettlement(person);
+    return settlement === "open";
+  });
+};
+
 export const haveAllOthersClosedShare = (split, userMobile) => {
   const others = (split?.people ?? []).filter(
     (person) => !findPersonByPhone([person], userMobile)
@@ -108,6 +126,23 @@ export const haveAllOthersClosedShare = (split, userMobile) => {
 
   return others.every((person) => person.status === "closed");
 };
+
+export const canCreatorRemind = (split, userMobile, person) => {
+  if (!isSplitCreator(split, userMobile) || !person) {
+    return false;
+  }
+
+  if (findPersonByPhone([person], userMobile)) {
+    return false;
+  }
+
+  return getPersonSettlement(person) !== "settled";
+};
+
+export const getRemindablePeople = (split, userMobile) =>
+  (split?.people ?? []).filter((person) =>
+    canCreatorRemind(split, userMobile, person)
+  );
 
 export const countPendingSettlements = (split, userMobile) => {
   if (!isSplitCreator(split, userMobile)) {
@@ -197,6 +232,27 @@ export const getBillSettlementStatus = (split, userMobile) => {
 
 export const isSplitOpen = (split, userMobile) =>
   !isUserBillClosed(split, userMobile);
+
+export const summarizeCreatedSplits = (splits, userMobile) => {
+  let youAreOwed = 0;
+  let pendingConfirmations = 0;
+  let activeCollections = 0;
+
+  for (const split of splits || []) {
+    const net = getCreatorNetDueSummary(split, userMobile);
+    youAreOwed += net.netDue;
+    pendingConfirmations += countPendingSettlements(split, userMobile);
+    if (getBillSettlementStatus(split, userMobile) !== "fully_settled") {
+      activeCollections += 1;
+    }
+  }
+
+  return {
+    youAreOwed: Number(youAreOwed.toFixed(2)),
+    pendingConfirmations,
+    activeCollections,
+  };
+};
 
 export const summarizeSplits = (splits, userMobile) => {
   const openSplits = splits.filter((split) => isSplitOpen(split, userMobile));
