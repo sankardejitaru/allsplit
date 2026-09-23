@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-24.04   # or keep ubuntu-latest
+    runs-on: ubuntu-24.04   # safer than ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,11 +19,11 @@ jobs:
           distribution: 'temurin'
 
       - name: Decode Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > allsplit.money.app/android/app/keystore.jks
 
       - name: Build Signed APK
         run: ./gradlew assembleRelease
-        working-directory: android
+        working-directory: allsplit.money.app/android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -33,4 +33,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: allsplit.money.app/android/app/build/outputs/apk/release/*.apk
