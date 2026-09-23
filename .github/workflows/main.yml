@@ -1,10 +1,10 @@
-name: Android Build
+name: iOS Build
 
 on:
   push:
     branches:
       - ios_build
-  workflow_dispatch:   # allows manual trigger from Actions tab
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -18,9 +18,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: Install JS dependencies
+        run: npm install
+        working-directory: allsplit.money.app
+
+      - name: Install CocoaPods
         run: |
-          npm ci
           cd ios
           pod install --repo-update
 
@@ -38,3 +41,9 @@ jobs:
             -archivePath $PWD/build/YourApp.xcarchive \
             -exportOptionsPlist ios/exportOptions.plist \
             -exportPath $PWD/build
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/*.ipa
