@@ -1,6 +1,14 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - cleanup-architecture
+  workflow_dispatch:   # allows manual trigger from Actions tab
+
 jobs:
   build-android:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04   # pin runner for stability
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
