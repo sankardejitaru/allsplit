@@ -8,7 +8,11 @@ on:
 
 jobs:
   build-ios:
-    runs-on: ubuntu-latest   # EAS Build works fine on Ubuntu
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: allsplit.money.app
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -16,23 +20,47 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: allsplit.money.app/package-lock.json
 
       - name: Install JS dependencies
-        run: npm install
-        working-directory: allsplit.money.app
+        run: npm ci
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      - name: Generate / sync iOS native project
+        run: npx expo prebuild --platform ios --non-interactive
 
-      - name: Run EAS iOS Build
-        run: eas build -p ios --non-interactive
-        working-directory: allsplit.money.app
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
 
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: allsplit.money.app/dist/*.ipa
+      - name: Build iOS (Simulator Release)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/allsplitmoney.xcworkspace \
+            -scheme allsplitmoney \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            build \
+            CODE_SIGNING_ALLOWED=NO
+
+      # When Apple signing is configured (cert + profile + exportOptions.plist teamID):
+      # - name: Archive + export IPA
+      #   run: |
+      #     mkdir -p "$GITHUB_WORKSPACE/build"
+      #     xcodebuild -workspace ios/allsplitmoney.xcworkspace \
+      #       -scheme allsplitmoney -sdk iphoneos -configuration Release \
+      #       -archivePath "$GITHUB_WORKSPACE/build/allsplitmoney.xcarchive" archive
+      #     xcodebuild -exportArchive \
+      #       -archivePath "$GITHUB_WORKSPACE/build/allsplitmoney.xcarchive" \
+      #       -exportOptionsPlist ios/exportOptions.plist \
+      #       -exportPath "$GITHUB_WORKSPACE/build"
+      #
+      # - name: Upload IPA
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ios-ipa
+      #     path: build/*.ipa

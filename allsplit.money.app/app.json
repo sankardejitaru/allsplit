@@ -14,8 +14,12 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.allsplit.money",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSContactsUsageDescription": "AllSplit uses your contacts to add people to bill splits."
+        "NSContactsUsageDescription": "AllSplit uses your contacts to add people to bill splits.",
+        "NSCameraUsageDescription": "AllSplit uses the camera to scan bills and invite QR codes.",
+        "NSPhotoLibraryUsageDescription": "AllSplit uses your photo library to upload bill images."
       }
     },
     "android": {

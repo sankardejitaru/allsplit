@@ -1,0 +1,2 @@
+# Keep committed iOS scaffold; CI regenerates Xcode project via expo prebuild.
+# Do not ignore the whole ios/ folder.
