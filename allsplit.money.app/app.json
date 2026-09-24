@@ -16,6 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.allsplit.money",
       "buildNumber": "1",
+      "deploymentTarget": "15.5",
       "infoPlist": {
         "NSContactsUsageDescription": "AllSplit uses your contacts to add people to bill splits.",
         "NSCameraUsageDescription": "AllSplit uses the camera to scan bills and invite QR codes.",

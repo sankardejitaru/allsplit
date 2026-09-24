@@ -9,6 +9,7 @@ This folder is the native iOS project for GitHub Actions / Mac builds.
 | Bundle ID | `com.allsplit.money` |
 | Xcode project / scheme | `allsplitmoney` |
 | Workspace (after pods) | `allsplitmoney.xcworkspace` |
+| Min iOS | **15.5** (required by `@react-native-ml-kit/text-recognition`) |
 
 > Expo sanitizes `allsplit.money` → `allsplitmoney`.
 

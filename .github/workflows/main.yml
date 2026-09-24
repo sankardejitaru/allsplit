@@ -30,6 +30,20 @@ jobs:
       - name: Generate / sync iOS native project
         run: npx expo prebuild --platform ios --non-interactive
 
+      # RNMLKitTextRecognition / Google ML Kit require iOS 15.5+
+      - name: Set iOS deployment target 15.5
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "ios/Podfile.properties.json";
+          const props = fs.existsSync(path)
+            ? JSON.parse(fs.readFileSync(path, "utf8"))
+            : {};
+          props["ios.deploymentTarget"] = "15.5";
+          fs.writeFileSync(path, JSON.stringify(props, null, 2) + "\n");
+          console.log("Updated", path, props);
+          NODE
+
       - name: Install CocoaPods
         run: |
           cd ios
